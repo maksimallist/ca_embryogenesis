@@ -1,0 +1,6 @@
+ipython
+matplotlib
+moviepy
+pillow
+tensorflow
+tqdm
