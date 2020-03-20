@@ -4,7 +4,8 @@ import io
 import PIL.Image
 import PIL.ImageDraw
 import numpy as np
-from IPython.display import Image
+import requests
+from IPython.display import Image, display
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 
@@ -63,7 +64,7 @@ def zoom(img, scale=4):
     return img
 
 
-def load_image(url, max_size=TARGET_SIZE):
+def load_image(url, max_size):
     r = requests.get(url)
     img = PIL.Image.open(io.BytesIO(r.content))
     img.thumbnail((max_size, max_size), PIL.Image.ANTIALIAS)
@@ -74,24 +75,18 @@ def load_image(url, max_size=TARGET_SIZE):
     return img
 
 
-def load_emoji(emoji):
+def load_emoji(emoji, max_size):
     code = hex(ord(emoji))[2:].lower()
     url = 'https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u%s.png' % code
-    return load_image(url)
+    return load_image(url, max_size)
 
 
 def to_rgba(x):
     return x[..., :4]
 
 
-def to_rgb(x):
-    # assume rgb premultiplied by alpha
-    rgb, a = x[..., :3], to_alpha(x)
-    return 1.0 - a + rgb
-
-
-def make_seed(size, n=1):
-    x = np.zeros([n, size, size, CHANNEL_N], np.float32)
+def make_seed(size, channel_n, n=1):
+    x = np.zeros([n, size, size, channel_n], np.float32)
     x[:, size // 2, size // 2, 3:] = 1.0
 
     return x

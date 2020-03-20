@@ -7,14 +7,19 @@ def to_alpha(x):
     return tf.clip_by_value(x[..., 3:4], 0.0, 1.0)
 
 
+def to_rgb(x):
+    # assume rgb premultiplied by alpha
+    rgb, a = x[..., :3], to_alpha(x)
+    return 1.0 - a + rgb
+
+
 def get_living_mask(x):
     alpha = x[:, :, :, 3:4]
     return tf.nn.max_pool2d(alpha, 3, [1, 1, 1, 1], 'SAME') > 0.1
 
 
 class CAModel(tf.keras.Model):
-
-    def __init__(self, channel_n=CHANNEL_N, fire_rate=CELL_FIRE_RATE):
+    def __init__(self, channel_n: int, fire_rate: float):
         super().__init__()
         self.channel_n = channel_n
         self.fire_rate = fire_rate
@@ -37,6 +42,7 @@ class CAModel(tf.keras.Model):
         kernel = tf.stack([identify, c * dx - s * dy, s * dx + c * dy], -1)[:, :, None, :]
         kernel = tf.repeat(kernel, self.channel_n, 2)
         y = tf.nn.depthwise_conv2d(x, kernel, [1, 1, 1, 1], 'SAME')
+
         return y
 
     @tf.function
@@ -52,6 +58,7 @@ class CAModel(tf.keras.Model):
 
         post_life_mask = get_living_mask(x)
         life_mask = pre_life_mask & post_life_mask
+
         return x * tf.cast(life_mask, tf.float32)
 
 # CAModel().dmodel.summary()

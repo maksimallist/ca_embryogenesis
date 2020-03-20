@@ -4,7 +4,9 @@ import glob
 # Select "CHECKPOINT" model to load the checkpoint created by running cells from the "Training" section of this notebook
 import IPython.display
 
-model = "CHECKPOINT"  # ['CHECKPOINT', '😀 1F600', '💥 1F4A5', '👁 1F441', '🦎 1F98E', '🐠 1F420', '🦋 1F98B', '🐞 1F41E', '🕸 1F578', '🥨 1F968', '🎄 1F384']
+# Available models checkpoint: ['CHECKPOINT', '😀 1F600', '💥 1F4A5', '👁 1F441', '🦎 1F98E', '🐠 1F420', '🦋 1F98B',
+# '🐞 1F41E', '🕸 1F578', '🥨 1F968', '🎄 1F384']
+model = "CHECKPOINT"
 model_type = '3 regenerating'  # ['1 naive', '2 persistent', '3 regenerating']
 
 # Shift-click to seed the pattern
