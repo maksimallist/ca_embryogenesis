@@ -1,6 +1,6 @@
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.layers import Conv2D  # TensorFlow version >= 2.0
+import tensorflow as tf  # TensorFlow version >= 2.0
+from tensorflow.keras.layers import Conv2D
 
 
 def to_alpha(x):
@@ -20,16 +20,30 @@ def get_living_mask(x):
 
 class CAModel(tf.keras.Model):
     def __init__(self, channel_n: int, fire_rate: float):
+        """
+        Последовательность операции следующая:
+            На вход: [bs, channels, rows, cols]
+            Первая свертка: (128 фильтров, 1 - поле восприимчивости (не совсем ясно как тогда они смотрят на соседей))
+            Выход первой свертки: [bs, 128, rows, cols]
+            Вторая свертка: (channels - фильтров, 1 - поле восприятия)
+            Выход второй свертки: [bs, 16, rows, cols] - он сравнивается с обучающимися примерами
+
+        Я так понимаю что масштаб изображения сохраняется из-за того что поле восприятия (kernel_size) равен 1.
+        TODO: надо понять почему выход сети (вторую свертку мы инициализируем нулями. Ну и проверить правда ли она
+              инициализируется нулями, или я чет просто не понимаю.
+
+        Args:
+            channel_n: длинна состояния отдельной ячейки
+            fire_rate:
+        """
         super().__init__()
         self.channel_n = channel_n
         self.fire_rate = fire_rate
 
-        self.dmodel = tf.keras.Sequential([
-            Conv2D(128, 1, activation=tf.nn.relu),
-            Conv2D(self.channel_n, 1, activation=None,
-                   kernel_initializer=tf.zeros_initializer),
-        ])
-
+        self.dmodel = tf.keras.Sequential([Conv2D(128, 1, activation=tf.nn.relu),
+                                           Conv2D(self.channel_n, 1, activation=None,
+                                                  kernel_initializer=tf.zeros_initializer)])
+        # TODO: видимо какая-то хрень из tf2.0 надо понять почему такие значения, и что это вообще такое.
         self(tf.zeros([1, 3, 3, channel_n]))  # dummy call to build the model
 
     @tf.function
