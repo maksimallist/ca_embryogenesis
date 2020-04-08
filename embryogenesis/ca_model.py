@@ -57,10 +57,6 @@ class CAModel(tf.keras.Model):
                                                   # TODO: почему инициализация нулями ?
                                                   kernel_initializer=tf.zeros_initializer)])
 
-        # это на самом деле блять просто ебаная проверка работоспособности модели внутри __init__ ! Гениально !
-        # Комментируем нахуй !
-        # self(tf.zeros([1, 3, 3, channel_n]))  # dummy call to build the model
-
     @tf.function
     def perceive(self, x, angle=0.0):
         """ Похоже что эта вся херня необучаемая """
