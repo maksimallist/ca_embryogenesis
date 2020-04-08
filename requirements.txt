@@ -2,6 +2,7 @@ requests
 ipython
 matplotlib
 moviepy
+numpy
 pillow
 tensorflow
 tqdm
