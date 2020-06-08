@@ -48,21 +48,21 @@ def make_circle_masks(n, h, w):
 def export_model(ca, base_fn, channel_n: int):
     ca.save_weights(base_fn)
     # todo: fix this error; maybe rewrite save function;
-    # cf = ca.call.get_concrete_function(x=tf.TensorSpec([None, None, None, channel_n]),
-    #                                    fire_rate=tf.constant(0.5),
-    #                                    angle=tf.constant(0.0),
-    #                                    step_size=tf.constant(1.0))
-    #
-    # cf = convert_to_constants.convert_variables_to_constants_v2(cf)
-    # graph_def = cf.graph.as_graph_def()
-    # graph_json = MessageToDict(graph_def)
-    # graph_json['versions'] = dict(producer='1.14', minConsumer='1.14')
-    # model_json = {'format': 'graph-model',
-    #               'modelTopology': graph_json,
-    #               'weightsManifest': []}
-    #
-    # with open(base_fn + '.json', 'w') as f:
-    #     json.dump(model_json, f)
+    cf = ca.call.get_concrete_function(x=tf.TensorSpec([None, None, None, channel_n]),
+                                       fire_rate=tf.constant(0.5),
+                                       angle=tf.constant(0.0),
+                                       step_size=tf.constant(1.0))
+
+    cf = convert_to_constants.convert_variables_to_constants_v2(cf)
+    graph_def = cf.graph.as_graph_def()
+    graph_json = MessageToDict(graph_def)
+    graph_json['versions'] = dict(producer='1.14', minConsumer='1.14')
+    model_json = {'format': 'graph-model',
+                  'modelTopology': graph_json,
+                  'weightsManifest': []}
+
+    with open(base_fn + '.json', 'w') as f:
+        json.dump(model_json, f)
 
 
 def generate_pool_figures(pool, step_i, save_path):
@@ -110,6 +110,3 @@ def train_step(ca, trainer, x, pad_target):
     trainer.apply_gradients(zip(grads, ca.weights))
 
     return x, loss
-
-
-

@@ -17,32 +17,32 @@ target_img = load_emoji("🦎", max_size=48)
 # запринтить пример картинки
 # imshow(zoom(to_rgb(target_img), 2), fmt='png')
 # ----------------------------------------------------------------------------------------------------------------------
-p = config['ca_params']['TARGET_PADDING']
+p = config['ca_params']['target_padding']
 pad_target = tf.pad(target_img, [(p, p), (p, p), (0, 0)])
 h, w = pad_target.shape[:2]
 
-seed = np.zeros(shape=[h, w, config['ca_params']['CHANNEL_N']], dtype=np.float32)
+seed = np.zeros(shape=[h, w, config['ca_params']['channel_n']], dtype=np.float32)
 seed[h // 2, w // 2, 3:] = 1.0
 
-ca = CAModel(channel_n=config['ca_params']['CHANNEL_N'], fire_rate=config['ca_params']['CELL_FIRE_RATE'])
+ca = CAModel(channel_n=config['ca_params']['channel_n'], fire_rate=config['ca_params']['cell_fire_rate'])
 
 lr = 2e-3
 lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000], [lr, lr * 0.1])
 trainer = tf.keras.optimizers.Adam(lr_sched)
 
 loss0 = loss_f(seed, pad_target=pad_target).numpy()
-pool = SamplePool(x=np.repeat(seed[None, ...], config['ca_params']['POOL_SIZE'], 0))
-root = Path("/Users/a17264288/PycharmProjects/cellar_automata_experiments/embryogenesis/experiments/exp_test/train_log")
+pool = SamplePool(x=np.repeat(seed[None, ...], config['ca_params']['pool_size'], 0))
+root = Path("/Users/a17264288/PycharmProjects/cellar_automata_experiments/embryogenesis/experiments/exp_1/train_log")
 root.mkdir(parents=True, exist_ok=False)
 # !mkdir -p train_log && rm -f train_log/*
 
 loss_log = []
-exp_map = config['experiment_config']['EXPERIMENT_MAP']
-EXPERIMENT_N = exp_map[config['experiment_config']['EXPERIMENT_TYPE']]
+exp_map = config['experiment_config']['experiment_map']
+EXPERIMENT_N = exp_map[config['experiment_config']['experiment_type']]
 use_pattern_pool = [0, 1, 1][EXPERIMENT_N]
 damage_n = [0, 0, 3][EXPERIMENT_N]  # Number of patterns to damage in a batch
-batch_size = config['ca_params']['BATCH_SIZE']
-channel_n = config['ca_params']['CHANNEL_N']
+batch_size = config['ca_params']['batch_size']
+channel_n = config['ca_params']['channel_n']
 
 for i in range(8000 + 1):
     if use_pattern_pool:
