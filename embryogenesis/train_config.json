@@ -8,7 +8,6 @@
     "CELL_FIRE_RATE": 0.5
   },
   "experiment_config": {
-    "TARGET_EMOJI": "https://github.com/google-research/self-organising-systems/blob/master/assets/growing_ca/planaria2_48.png?raw=true",
     "EXPERIMENT_TYPE": "Regenerating",
     "EXPERIMENT_MAP": {
       "Growing": 0,

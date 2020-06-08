@@ -65,7 +65,7 @@ def export_model(ca, base_fn, channel_n: int):
         json.dump(model_json, f)
 
 
-def generate_pool_figures(pool, step_i):
+def generate_pool_figures(pool, step_i, save_path):
     tiled_pool = tile2d(to_rgb(pool.x[:49]))
     fade = np.linspace(1.0, 0.0, 72)
     ones = np.ones(72)
@@ -74,7 +74,7 @@ def generate_pool_figures(pool, step_i):
     tiled_pool[:72, :] += (-tiled_pool[:72, :] + ones[:, None, None]) * fade[:, None, None]
     tiled_pool[-72:, :] += (-tiled_pool[-72:, :] + ones[:, None, None]) * fade[::-1, None, None]
 
-    imwrite('train_log/%04d_pool.jpg' % step_i, tiled_pool)
+    imwrite(save_path + '%04d_pool.jpg' % step_i, tiled_pool)
 
 
 def visualize_batch(x0, x, step_i):
