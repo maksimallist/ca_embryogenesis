@@ -52,9 +52,9 @@ class CAModel(tf.keras.Model):
         self.channel_n = channel_n
         self.fire_rate = fire_rate
 
-        self.dmodel = tf.keras.Sequential([Conv2D(filters=128, kernel_size=1, activation=tf.nn.relu),
-                                           Conv2D(filters=self.channel_n, kernel_size=1, activation=None,
-                                                  # TODO: почему инициализация нулями ?
+        # todo: почему инициализация нулями ?
+        self.strange_model = tf.keras.Sequential([Conv2D(filters=128, kernel_size=1, activation=tf.nn.relu),
+                                                  Conv2D(filters=self.channel_n, kernel_size=1, activation=None,
                                                   kernel_initializer=tf.zeros_initializer)])
 
     @tf.function
@@ -97,7 +97,7 @@ class CAModel(tf.keras.Model):
 
         y = self.perceive(ca, angle)  # y shape: [Batch, Height, Width, self.channel_n * 3]
         # TODO: ??? совершаем step_size шагов обновления клеточного автомата ???
-        ca_delta = self.dmodel(y) * step_size
+        ca_delta = self.strange_model(y) * step_size
 
         if fire_rate is None:
             fire_rate = self.fire_rate

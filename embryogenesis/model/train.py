@@ -6,8 +6,8 @@ import tensorflow as tf
 from google.protobuf.json_format import MessageToDict
 from tensorflow.python.framework import convert_to_constants
 
-from embryogenesis.ca_model import to_rgb
-from embryogenesis.utils import tile2d, imwrite, imshow, to_rgba
+from embryogenesis.model.ca_model import to_rgb
+from embryogenesis.model.utils import tile2d, imwrite, imshow, to_rgba
 
 
 class SamplePool:
@@ -111,34 +111,5 @@ def train_step(ca, trainer, x, pad_target):
 
     return x, loss
 
-# for i in range(8000 + 1):
-#     if USE_PATTERN_POOL:
-#         batch = pool.sample(BATCH_SIZE)
-#         x0 = batch.x
-#         loss_rank = loss_f(x0).numpy().argsort()[::-1]
-#         x0 = x0[loss_rank]
-#         x0[:1] = seed
-#         if DAMAGE_N:
-#             damage = 1.0 - make_circle_masks(DAMAGE_N, h, w).numpy()[..., None]
-#             x0[-DAMAGE_N:] *= damage
-#     else:
-#         x0 = np.repeat(seed[None, ...], BATCH_SIZE, 0)
-#
-#     x, loss = train_step(x0)
-#
-#     if USE_PATTERN_POOL:
-#         batch.x[:] = x
-#         batch.commit()
-#
-#     step_i = len(loss_log)
-#     loss_log.append(loss.numpy())
-#
-#     if step_i % 10 == 0:
-#         generate_pool_figures(pool, step_i)
-#     if step_i % 100 == 0:
-#         clear_output()
-#         visualize_batch(x0, x, step_i)
-#         plot_loss(loss_log)
-#         export_model(ca, 'train_log/%04d' % step_i)
-#
-#     print('\r step: %d, log10(loss): %.3f' % (len(loss_log), np.log10(loss)), end='')
+
+

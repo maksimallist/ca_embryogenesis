@@ -1,0 +1,19 @@
+{
+  "ca_params": {
+    "CHANNEL_N": 16,
+    "TARGET_PADDING": 16,
+    "TARGET_SIZE": 40,
+    "BATCH_SIZE": 8,
+    "POOL_SIZE": 1024,
+    "CELL_FIRE_RATE": 0.5
+  },
+  "experiment_config": {
+    "TARGET_EMOJI": "",
+    "EXPERIMENT_TYPE": "Regenerating",
+    "EXPERIMENT_MAP": {
+      "Growing": 0,
+      "Persistent": 1,
+      "Regenerating": 2
+    }
+  }
+}
