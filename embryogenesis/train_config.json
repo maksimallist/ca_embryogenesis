@@ -1,15 +1,15 @@
 {
   "ca_params": {
-    "CHANNEL_N": 16,
-    "TARGET_PADDING": 16,
-    "TARGET_SIZE": 40,
-    "BATCH_SIZE": 8,
-    "POOL_SIZE": 1024,
-    "CELL_FIRE_RATE": 0.5
+    "channel_n": 16,
+    "target_padding": 16,
+    "target_size": 40,
+    "batch_size": 8,
+    "pool_size": 1024,
+    "cell_fire_rate": 0.5
   },
   "experiment_config": {
-    "EXPERIMENT_TYPE": "Regenerating",
-    "EXPERIMENT_MAP": {
+    "experiment_type": "Regenerating",
+    "experiment_map": {
       "Growing": 0,
       "Persistent": 1,
       "Regenerating": 2
