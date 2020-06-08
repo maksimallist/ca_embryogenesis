@@ -1,7 +1,8 @@
+from typing import Optional
+
 import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
 from tensorflow.keras.layers import Conv2D
-from typing import Optional
 
 
 def to_alpha(x):
@@ -12,24 +13,6 @@ def to_rgb(x):
     # assume rgb premultiplied by alpha
     rgb, a = x[..., :3], to_alpha(x)
     return 1.0 - a + rgb
-
-
-def get_living_mask(x):
-    """
-    Берет из общего тензора срез по оси каналов. А именно матрицу стоящую под индексом 3. Эта матрица, или этот канал
-    отвечает за маску отобрадающую состояния "живых клеток" в клеточном автомате.
-
-    Args:
-        x: tf.tensor with shape = (batch, height, width, channels); it is our batch of cellar automata states;
-
-    Returns:
-
-    """
-    alpha = x[:, :, :, 3:4]  # alpha shape: [Batch, Height, Width, 1]
-    pool_result = tf.nn.max_pool2d(input=alpha, ksize=3, strides=[1, 1, 1, 1], padding='SAME')
-    living_mask = pool_result > 0.1  # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
-
-    return living_mask
 
 
 class CAModel(tf.keras.Model):
@@ -55,7 +38,7 @@ class CAModel(tf.keras.Model):
         # todo: почему инициализация нулями ?
         self.strange_model = tf.keras.Sequential([Conv2D(filters=128, kernel_size=1, activation=tf.nn.relu),
                                                   Conv2D(filters=self.channel_n, kernel_size=1, activation=None,
-                                                  kernel_initializer=tf.zeros_initializer)])
+                                                         kernel_initializer=tf.zeros_initializer)])
 
     @tf.function
     def perceive(self, x, angle=0.0):
@@ -81,11 +64,12 @@ class CAModel(tf.keras.Model):
         return y
 
     @tf.function
-    def call(self, ca, fire_rate: Optional[float] = None, angle: float = 0.0, step_size: float = 1.0):
+    def call(self, ca_state, fire_rate: Optional[float] = None, angle: float = 0.0, step_size: float = 1.0):
         """
         Здесь имплементирован один шаг обновления клеточного автомата.
         Args:
-            ca: tf.tensor with shape = (batch, height, width, channels); it is our batch of cellar automata states;
+            ca_state: tf.tensor with shape = (batch, height, width, channels); it is our batch of cellar automata
+                      states;
             fire_rate: probability of ***; todo: дописать по статье
             angle: angle of transformation on our target image; todo: надо проверить по статье так ли это
             step_size: ***; todo: дописать по статье
@@ -93,21 +77,38 @@ class CAModel(tf.keras.Model):
         Returns:
             Новое состояние клеточного автомата.
         """
-        pre_life_mask = get_living_mask(ca)  # pre_life_mask shape: [Batch, Height, Width, 1];
+        pre_life_mask = self.get_living_mask(ca_state)  # pre_life_mask shape: [Batch, Height, Width, 1];
 
-        y = self.perceive(ca, angle)  # y shape: [Batch, Height, Width, self.channel_n * 3]
-        # TODO: ??? совершаем step_size шагов обновления клеточного автомата ???
+        y = self.perceive(ca_state, angle)  # y shape: [Batch, Height, Width, self.channel_n * 3]
         ca_delta = self.strange_model(y) * step_size
 
         if fire_rate is None:
             fire_rate = self.fire_rate
 
         # TODO: почему мы используем рандом ?
-        update_mask = tf.random.uniform(tf.shape(ca[:, :, :, :1])) <= fire_rate
+        update_mask = tf.random.uniform(tf.shape(ca_state[:, :, :, :1])) <= fire_rate
         # TODO: check that update_mask shape: [Batch, Height, Width, 1]
-        ca += ca_delta * tf.cast(update_mask, tf.float32)
+        ca_state += ca_delta * tf.cast(update_mask, tf.float32)
 
-        post_life_mask = get_living_mask(ca)
+        post_life_mask = self.get_living_mask(ca_state)
         life_mask = pre_life_mask & post_life_mask
 
-        return ca * tf.cast(life_mask, tf.float32)
+        return ca_state * tf.cast(life_mask, tf.float32)
+
+    @staticmethod
+    def get_living_mask(x):
+        """
+        Берет из общего тензора срез по оси каналов. А именно матрицу стоящую под индексом 3. Эта матрица, или этот
+        канал отвечает за маску отобрадающую состояния "живых клеток" в клеточном автомате.
+
+        Args:
+            x: tf.tensor with shape = (batch, height, width, channels); it is our batch of cellar automata states;
+
+        Returns:
+            living_mask with shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
+        """
+        alpha = x[:, :, :, 3:4]  # alpha shape: [Batch, Height, Width, 1]
+        pool_result = tf.nn.max_pool2d(input=alpha, ksize=3, strides=[1, 1, 1, 1], padding='SAME')
+        living_mask = pool_result > 0.1  # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
+
+        return living_mask
