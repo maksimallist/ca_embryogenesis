@@ -6,8 +6,8 @@ import tensorflow as tf
 from google.protobuf.json_format import MessageToDict
 from tensorflow.python.framework import convert_to_constants
 
-from embryogenesis.ca_model import to_rgb
-from embryogenesis.utils import tile2d, imwrite, imshow, to_rgba
+from embryogenesis.model.ca_model import to_rgb
+from embryogenesis.model.utils import tile2d, imwrite, imshow, to_rgba
 
 
 class SamplePool:
@@ -47,25 +47,25 @@ def make_circle_masks(n, h, w):
 
 def export_model(ca, base_fn, channel_n: int):
     ca.save_weights(base_fn)
+    # todo: fix this error; maybe rewrite save function;
+    # cf = ca.call.get_concrete_function(x=tf.TensorSpec([None, None, None, channel_n]),
+    #                                    fire_rate=tf.constant(0.5),
+    #                                    angle=tf.constant(0.0),
+    #                                    step_size=tf.constant(1.0))
+    #
+    # cf = convert_to_constants.convert_variables_to_constants_v2(cf)
+    # graph_def = cf.graph.as_graph_def()
+    # graph_json = MessageToDict(graph_def)
+    # graph_json['versions'] = dict(producer='1.14', minConsumer='1.14')
+    # model_json = {'format': 'graph-model',
+    #               'modelTopology': graph_json,
+    #               'weightsManifest': []}
+    #
+    # with open(base_fn + '.json', 'w') as f:
+    #     json.dump(model_json, f)
 
-    cf = ca.call.get_concrete_function(x=tf.TensorSpec([None, None, None, channel_n]),
-                                       fire_rate=tf.constant(0.5),
-                                       angle=tf.constant(0.0),
-                                       step_size=tf.constant(1.0))
 
-    cf = convert_to_constants.convert_variables_to_constants_v2(cf)
-    graph_def = cf.graph.as_graph_def()
-    graph_json = MessageToDict(graph_def)
-    graph_json['versions'] = dict(producer='1.14', minConsumer='1.14')
-    model_json = {'format': 'graph-model',
-                  'modelTopology': graph_json,
-                  'weightsManifest': []}
-
-    with open(base_fn + '.json', 'w') as f:
-        json.dump(model_json, f)
-
-
-def generate_pool_figures(pool, step_i):
+def generate_pool_figures(pool, step_i, save_path):
     tiled_pool = tile2d(to_rgb(pool.x[:49]))
     fade = np.linspace(1.0, 0.0, 72)
     ones = np.ones(72)
@@ -74,15 +74,15 @@ def generate_pool_figures(pool, step_i):
     tiled_pool[:72, :] += (-tiled_pool[:72, :] + ones[:, None, None]) * fade[:, None, None]
     tiled_pool[-72:, :] += (-tiled_pool[-72:, :] + ones[:, None, None]) * fade[::-1, None, None]
 
-    imwrite('train_log/%04d_pool.jpg' % step_i, tiled_pool)
+    imwrite(save_path + '%04d_pool.jpg' % step_i, tiled_pool)
 
 
-def visualize_batch(x0, x, step_i):
+def visualize_batch(x0, x, step_i, save_path):
     vis0 = np.hstack(to_rgb(x0).numpy())
     vis1 = np.hstack(to_rgb(x).numpy())
     vis = np.vstack([vis0, vis1])
 
-    imwrite('train_log/batches_%04d.jpg' % step_i, vis)
+    imwrite(save_path + 'batches_%04d.jpg' % step_i, vis)
     print('batch (before/after):')
     imshow(vis)
 
@@ -111,34 +111,5 @@ def train_step(ca, trainer, x, pad_target):
 
     return x, loss
 
-# for i in range(8000 + 1):
-#     if USE_PATTERN_POOL:
-#         batch = pool.sample(BATCH_SIZE)
-#         x0 = batch.x
-#         loss_rank = loss_f(x0).numpy().argsort()[::-1]
-#         x0 = x0[loss_rank]
-#         x0[:1] = seed
-#         if DAMAGE_N:
-#             damage = 1.0 - make_circle_masks(DAMAGE_N, h, w).numpy()[..., None]
-#             x0[-DAMAGE_N:] *= damage
-#     else:
-#         x0 = np.repeat(seed[None, ...], BATCH_SIZE, 0)
-#
-#     x, loss = train_step(x0)
-#
-#     if USE_PATTERN_POOL:
-#         batch.x[:] = x
-#         batch.commit()
-#
-#     step_i = len(loss_log)
-#     loss_log.append(loss.numpy())
-#
-#     if step_i % 10 == 0:
-#         generate_pool_figures(pool, step_i)
-#     if step_i % 100 == 0:
-#         clear_output()
-#         visualize_batch(x0, x, step_i)
-#         plot_loss(loss_log)
-#         export_model(ca, 'train_log/%04d' % step_i)
-#
-#     print('\r step: %d, log10(loss): %.3f' % (len(loss_log), np.log10(loss)), end='')
+
+
