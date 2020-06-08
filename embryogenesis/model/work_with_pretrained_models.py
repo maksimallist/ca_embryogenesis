@@ -6,17 +6,21 @@ import tqdm
 from matplotlib import font_manager as fm
 
 
-def get_model(emoji='🦋', fire_rate=0.5, use_pool=1, damage_n=3, run=0,
-              prefix='models/', output='model'):
+def get_model(emoji='🦋', fire_rate=0.5, use_pool=1, damage_n=3, run=0, prefix='models/', output='model'):
     path = prefix
+
     assert fire_rate in [0.5, 1.0]
+
     if fire_rate == 0.5:
         path += 'use_sample_pool_%d damage_n_%d ' % (use_pool, damage_n)
     elif fire_rate == 1.0:
         path += 'fire_rate_1.0 '
+
     code = hex(ord(emoji))[2:].upper()
     path += 'target_emoji_%s run_index_%d/08000' % (code, run)
+
     assert output in ['model', 'json']
+
     if output == 'model':
         ca = CAModel(channel_n=16, fire_rate=fire_rate)
         ca.load_weights(path)
