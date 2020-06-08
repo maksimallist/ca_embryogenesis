@@ -73,8 +73,10 @@ for i in range(8000 + 1):
 
         clear_output()
 
-        visualize_batch(x0, x, step_i)
-        plot_loss(loss_log)
+        visualize_batch(x0, x, step_i, str(root))
+        # todo: поставить вывод только в специальном режиме
+        # plot_loss(loss_log)
+        # todo: fix export_model code
         export_model(ca, 'train_log/%04d' % step_i, channel_n=channel_n)
 
     print('\r step: %d, log10(loss): %.3f' % (len(loss_log), np.log10(loss)), end='')

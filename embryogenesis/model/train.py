@@ -47,22 +47,22 @@ def make_circle_masks(n, h, w):
 
 def export_model(ca, base_fn, channel_n: int):
     ca.save_weights(base_fn)
-
-    cf = ca.call.get_concrete_function(x=tf.TensorSpec([None, None, None, channel_n]),
-                                       fire_rate=tf.constant(0.5),
-                                       angle=tf.constant(0.0),
-                                       step_size=tf.constant(1.0))
-
-    cf = convert_to_constants.convert_variables_to_constants_v2(cf)
-    graph_def = cf.graph.as_graph_def()
-    graph_json = MessageToDict(graph_def)
-    graph_json['versions'] = dict(producer='1.14', minConsumer='1.14')
-    model_json = {'format': 'graph-model',
-                  'modelTopology': graph_json,
-                  'weightsManifest': []}
-
-    with open(base_fn + '.json', 'w') as f:
-        json.dump(model_json, f)
+    # todo: fix this error; maybe rewrite save function;
+    # cf = ca.call.get_concrete_function(x=tf.TensorSpec([None, None, None, channel_n]),
+    #                                    fire_rate=tf.constant(0.5),
+    #                                    angle=tf.constant(0.0),
+    #                                    step_size=tf.constant(1.0))
+    #
+    # cf = convert_to_constants.convert_variables_to_constants_v2(cf)
+    # graph_def = cf.graph.as_graph_def()
+    # graph_json = MessageToDict(graph_def)
+    # graph_json['versions'] = dict(producer='1.14', minConsumer='1.14')
+    # model_json = {'format': 'graph-model',
+    #               'modelTopology': graph_json,
+    #               'weightsManifest': []}
+    #
+    # with open(base_fn + '.json', 'w') as f:
+    #     json.dump(model_json, f)
 
 
 def generate_pool_figures(pool, step_i, save_path):
@@ -77,12 +77,12 @@ def generate_pool_figures(pool, step_i, save_path):
     imwrite(save_path + '%04d_pool.jpg' % step_i, tiled_pool)
 
 
-def visualize_batch(x0, x, step_i):
+def visualize_batch(x0, x, step_i, save_path):
     vis0 = np.hstack(to_rgb(x0).numpy())
     vis1 = np.hstack(to_rgb(x).numpy())
     vis = np.vstack([vis0, vis1])
 
-    imwrite('train_log/batches_%04d.jpg' % step_i, vis)
+    imwrite(save_path + 'batches_%04d.jpg' % step_i, vis)
     print('batch (before/after):')
     imshow(vis)
 
