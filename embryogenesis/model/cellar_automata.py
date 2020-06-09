@@ -2,10 +2,45 @@ from typing import Dict
 
 import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
-from tensorflow.keras.layers import Conv2D
+from tensorflow.keras import Model
+from tensorflow.keras.layers import Conv2D, Layer
 
 
-class CAModel(tf.keras.Model):
+class PerceptionKernel(Layer):
+    def __init__(self,
+                 channel_n: int,
+                 norm_value: int = 8,
+                 name='perception kernel',
+                 **kwargs):
+        super(PerceptionKernel, self).__init__(name=name, **kwargs)
+        self.channel_n = channel_n
+        self.norm_value = norm_value
+
+    def call(self, inputs, **kwargs):
+        state_tensor, angle = inputs
+
+        # get identify mask for single cell
+        identify_mask = tf.constant([0., 1.0, 0.], dtype=tf.float32)
+        identify_mask = tf.tensordot(identify_mask, identify_mask, axes=0)  # identify: [[000], [010], [000]];
+
+        # calculate Sobel filter as kernel for single cell
+        # Уточнение dx: Sobel filter 'X' value [[-1, -2, -1], [000], [1, 2, 1]]/8;
+        x_1 = tf.constant([1.0, 2.0, 1.0], dtype=tf.float32)
+        x_2 = tf.constant([-1.0, 0.0, 1.0], dtype=tf.float32)
+        dx = tf.tensordot(x_1, x_2, axes=0) / self.norm_value  # todo: почему делим на 8 ?
+        dy = tf.transpose(dx)  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
+
+        c, s = tf.cos(angle), tf.sin(angle)
+
+        kernel = tf.stack([identify_mask, c * dx - s * dy, c * dy + s * dx], -1)  # kernel shape: [3, 3, 3]
+        # А это видимо новый способ управлять осями тензоров в tf 2.*; таким образом можно увеличить размерность тензора
+        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, None, 3]
+        kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, self.channel_n, 3]
+
+        return kernel
+
+
+class CAModel(Model):
     def __init__(self, ca_config: Dict) -> None:
         super(CAModel, self).__init__()
         self.ca_config = ca_config
