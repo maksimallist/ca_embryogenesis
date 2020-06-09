@@ -40,6 +40,10 @@ class PerceptionKernel(Layer):
         return kernel
 
 
+class UpdateRule(Model):
+    pass
+
+
 class CAModel(Model):
     def __init__(self, ca_config: Dict) -> None:
         super(CAModel, self).__init__()
