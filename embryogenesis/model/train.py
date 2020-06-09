@@ -6,7 +6,7 @@ import tensorflow as tf
 from google.protobuf.json_format import MessageToDict
 from tensorflow.python.framework import convert_to_constants
 
-from embryogenesis.model.ca_model import to_rgb
+from embryogenesis.model.old_ca_model import to_rgb
 from embryogenesis.model.utils import tile2d, imwrite, imshow, to_rgba
 
 
