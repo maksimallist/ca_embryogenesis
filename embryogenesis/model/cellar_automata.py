@@ -31,6 +31,22 @@ class CAModel(tf.keras.Model):
                                                       kernel_initializer=tf.zeros_initializer)])  # ??????????????
 
     @tf.function
+    def get_living_mask(self):
+        """
+        Берет из общего тензора срез по оси каналов. А именно матрицу стоящую под индексом 3. Эта матрица, или этот
+        канал отвечает за маску отобрадающую состояния "живых клеток" в клеточном автомате.
+
+        Returns:
+            living_mask with shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
+        """
+        # todo: убрать хардкодинг
+        living_slice = self.petri_dish[:, :, :, 3:4]  # alpha shape: [Batch, Height, Width, 1]
+        pool_result = tf.nn.max_pool2d(input=living_slice, ksize=3, strides=[1, 1, 1, 1], padding='SAME')
+        living_mask = pool_result > 0.1  # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
+
+        return living_mask
+
+    @tf.function
     def _get_perception_kernel(self, angle=0.0):
         # get identify mask for single cell
         identify_mask = np.float32([0, 1, 0])
@@ -51,39 +67,16 @@ class CAModel(tf.keras.Model):
         return kernel
 
     @tf.function
-    def get_living_mask(self):
-        """
-        Берет из общего тензора срез по оси каналов. А именно матрицу стоящую под индексом 3. Эта матрица, или этот
-        канал отвечает за маску отобрадающую состояния "живых клеток" в клеточном автомате.
-
-        Returns:
-            living_mask with shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
-        """
-        # todo: убрать хардкодинг
-        living_slice = self.petri_dish[:, :, :, 3:4]  # alpha shape: [Batch, Height, Width, 1]
-        pool_result = tf.nn.max_pool2d(input=living_slice, ksize=3, strides=[1, 1, 1, 1], padding='SAME')
-        living_mask = pool_result > 0.1  # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
-
-        return living_mask
-
-    @tf.function
-    def perceive(self, angle=0.0):
-        perception_kernel = self._get_perception_kernel(angle=angle)
-        y = tf.nn.depthwise_conv2d(input=self.petri_dish,
-                                   filter=perception_kernel,
-                                   strides=[1, 1, 1, 1],
-                                   padding='SAME')
-        return y
-
-    @tf.function
     def growth_step(self, angle: float = 0.0, step_size: float = 1.0):
         pre_life_mask = self.get_living_mask()  # shape: [Batch, Height, Width, 1];
-        perception_kernel = self._get_perception_kernel(angle=angle)
+        perception_kernel = self._get_perception_kernel(angle=angle)  # kernel shape: [3, 3, self.channel_n, 3]
 
+        # perceive neighbors cells states
         observation = tf.nn.depthwise_conv2d(input=self.petri_dish,
                                              filter=perception_kernel,
                                              strides=[1, 1, 1, 1],
                                              padding='SAME')  # shape: [Batch, Height, Width, self.channel_n * 3]
+        # apply update rule
         ca_delta = self.update_cnn(observation) * step_size
 
         # todo: почему мы используем рандом ?
