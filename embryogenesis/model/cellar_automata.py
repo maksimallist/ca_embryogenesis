@@ -141,3 +141,15 @@ class PetriDish:  # бывший SamplePool
         # todo: сделать выбор осей через аргумент функции или self
         x[:, size // 2, size // 2, 3:] = 1.0
         return x
+
+    @staticmethod
+    @tf.function
+    def make_circle_masks(n, h, w):
+        """ Для повреждений в демо """
+        x = tf.linspace(-1.0, 1.0, w)[None, None, :]
+        y = tf.linspace(-1.0, 1.0, h)[None, :, None]
+        center = tf.random.uniform([2, n, 1, 1], -0.5, 0.5)
+        r = tf.random.uniform([n, 1, 1], 0.1, 0.4)
+        x, y = (x - center[0]) / r, (y - center[1]) / r
+        mask = tf.cast(x * x + y * y < 1.0, tf.float32)
+        return mask
