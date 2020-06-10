@@ -215,20 +215,20 @@ class UpdateRuleTrainer:
         return mask
 
     @tf.function
-    def train_step(self, x):
-        iter_n = tf.random.uniform([], 64, 96, tf.int32)
+    def train_step(self, input_tensor):
+        iter_n = tf.random.uniform([], 64, 96, tf.int32)  # sample random int from 64 to 96
 
         with tf.GradientTape() as g:
-            for i in tf.range(iter_n):
-                x = ca(x)
-            loss = tf.reduce_mean(loss_f(x))
+            for _ in tf.range(iter_n):
+                input_tensor = self.trainable_rule(input_tensor)
+            loss = tf.reduce_mean(self.loss_f(input_tensor))
 
-        grads = g.gradient(loss, ca.weights)
+        grads = g.gradient(loss, self.trainable_rule.weights)
         grads = [g / (tf.norm(g) + 1e-8) for g in grads]
 
-        self.optimizer.apply_gradients(zip(grads, ca.weights))
+        self.optimizer.apply_gradients(zip(grads, self.trainable_rule.weights))
 
-        return x, loss
+        return input_tensor, loss
 
     def train(self):
         seed = self.petri_dish.make_seed(return_seed=True)
@@ -253,7 +253,7 @@ class UpdateRuleTrainer:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
                 x, loss = self.train_step(batch)
 
-            step_i = len(loss_log)
+            # step_i = len(loss_log)
             loss_log.append(loss.numpy())
 
             # if step_i % 10 == 0:
