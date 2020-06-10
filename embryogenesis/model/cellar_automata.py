@@ -221,6 +221,7 @@ class UpdateRuleTrainer:
 
     @tf.function
     def train_step(self, input_tensor):
+        # todo: убрать хардкодинг
         iter_n = tf.random.uniform([], 64, 96, tf.int32)  # sample random int from 64 to 96
 
         with tf.GradientTape() as g:
@@ -236,11 +237,9 @@ class UpdateRuleTrainer:
         return input_tensor, loss
 
     def train(self):
-        seed = self.petri_dish.make_seed(return_seed=True)
-        loss_log = []
-
-        for i in range(self.train_steps + 1):
+        for step_i in range(self.train_steps + 1):
             if self.use_pattern_pool:
+                seed = self.petri_dish.make_seed(return_seed=True)
                 batch, cells_idx = self.petri_dish.sample(batch_size=self.batch_size)
                 loss_rank = self.loss_f(batch).numpy().argsort()[::-1]
 
@@ -258,17 +257,13 @@ class UpdateRuleTrainer:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
                 x, loss = self.train_step(batch)
 
-            step_i = len(loss_log)
-            loss_log.append(loss.numpy())
-
-            if step_i % 100 == 0:
-                # clear_output()
-                # visualize_batch(x0, x, step_i)
-                # plot_loss(loss_log)
-                # export_model(ca, 'train_log/%04d' % step_i)
-                self.trainable_rule.save(str(self.root))
-
             # if step_i % 10 == 0:
             #     generate_pool_figures(pool, step_i)
 
-            print(f"\r step: {len(loss_log)}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
+            if step_i % 100 == 0:
+                self.trainable_rule.save(str(self.root))
+                # clear_output()
+                # visualize_batch(x0, x, step_i)
+                # plot_loss(loss_log)
+
+            print(f"\r step: {step_i}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
