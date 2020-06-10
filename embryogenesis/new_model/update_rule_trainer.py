@@ -6,9 +6,10 @@ import numpy as np
 import tensorflow as tf
 from IPython.display import clear_output
 from tensorflow.keras import Model
+from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 from embryogenesis.new_model.petri_dish import PetriDish
-from embryogenesis.new_model.utils import load_emoji, to_rgba
+from embryogenesis.new_model.utils import to_rgba
 from embryogenesis.new_model.visualize_functions import visualize_batch, generate_pool_figures, to_rgb
 
 
@@ -18,13 +19,18 @@ class UpdateRuleTrainer:
                  exp_name: str,
                  petri_dish: PetriDish,
                  rule_model: Model,
-                 target_image: str,
-                 max_image_size: int,
+                 target_image: np.array,
                  batch_size: int,
                  train_steps: int,
                  use_pattern_pool: bool,
                  damage_n: Optional[int] = None,
                  target_padding: int = 16,
+                 learning_rate: float = 2e-3,
+                 boundaries: int = 2000,
+                 lr_multiplier: float = 0.1,
+                 left_end_of_range: int = 64,
+                 right_end_of_range: int = 96,
+                 grad_norm_value: float = 1e-8,
                  jupyter: bool = False) -> None:
         # experiments infrastructure attributes
         self.root = root
@@ -40,9 +46,7 @@ class UpdateRuleTrainer:
         self.trainable_rule = rule_model
 
         # target attributes
-        target_image = load_emoji(target_image, max_size=max_image_size)
-        self.p = target_padding
-        self.target = tf.pad(target_image, [(self.p, self.p), (self.p, self.p), (0, 0)])
+        self.target = tf.pad(target_image, [(target_padding, target_padding), (target_padding, target_padding), (0, 0)])
         self.target_shape = self.target.shape[:2]
 
         # train attributes
@@ -51,9 +55,16 @@ class UpdateRuleTrainer:
         self.use_pattern_pool = use_pattern_pool
         self.damage_n = damage_n
 
-        lr = 2e-3
-        lr_scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000], [lr, lr * 0.1])
+        self.lr = learning_rate
+        self.boundaries = boundaries
+        self.lr_multiplier = lr_multiplier
+        lr_scheduler = PiecewiseConstantDecay(boundaries=[self.boundaries],
+                                              values=[self.lr, self.lr * self.lr_multiplier])
         self.optimizer = tf.keras.optimizers.Adam(lr_scheduler)
+
+        self.left_end_of_range = left_end_of_range
+        self.right_end_of_range = right_end_of_range
+        self.grad_norm_value = grad_norm_value
 
     def prepare_exp_folder(self):
         exp_root = self.root.joinpath(self.exp_name)
@@ -91,8 +102,8 @@ class UpdateRuleTrainer:
 
     @tf.function
     def train_step(self, input_tensor):
-        # todo: убрать хардкодинг
-        iter_n = tf.random.uniform([], 64, 96, tf.int32)  # sample random int from 64 to 96
+        # sample random int from train steps range
+        iter_n = tf.random.uniform([], self.left_end_of_range, self.right_end_of_range, tf.int32)
 
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
@@ -100,7 +111,7 @@ class UpdateRuleTrainer:
             loss = tf.reduce_mean(self.loss_f(input_tensor))
 
         grads = g.gradient(loss, self.trainable_rule.weights)
-        grads = [g / (tf.norm(g) + 1e-8) for g in grads]
+        grads = [g / (tf.norm(g) + self.grad_norm_value) for g in grads]
 
         self.optimizer.apply_gradients(zip(grads, self.trainable_rule.weights))
 
