@@ -1,18 +1,15 @@
-from typing import Dict
-
-import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer
 
 
-class PerceptionKernel(Layer):
+class StateObservation(Layer):
     def __init__(self,
                  channel_n: int,
                  norm_value: int = 8,
                  name='perception kernel',
                  **kwargs):
-        super(PerceptionKernel, self).__init__(name=name, **kwargs)
+        super(StateObservation, self).__init__(name=name, **kwargs)
         self.channel_n = channel_n
         self.norm_value = norm_value
 
@@ -37,7 +34,13 @@ class PerceptionKernel(Layer):
         kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, None, 3]
         kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, self.channel_n, 3]
 
-        return kernel
+        # perceive neighbors cells states
+        observation = tf.nn.depthwise_conv2d(input=state_tensor,
+                                             filter=kernel,
+                                             strides=[1, 1, 1, 1],
+                                             padding='SAME')  # shape: [Batch, Height, Width, self.channel_n * 3]
+
+        return observation
 
 
 class LivingMask(Layer):
@@ -64,88 +67,44 @@ class LivingMask(Layer):
 
 
 class UpdateRule(Model):
-    pass
+    def __init__(self,
+                 name: str,
+                 fire_rate: float,
+                 life_threshold: float,  # 0.1
+                 channel_n: int,
+                 conv_1_filters: int = 128,
+                 conv_kernel_size: int = 1,
+                 **kwargs):
+        super(UpdateRule, self).__init__(name=name, **kwargs)
+        self.fire_rate = tf.cast(fire_rate, tf.float32)
+        self.get_living_mask = LivingMask(life_threshold=life_threshold)
+        self.observation = StateObservation(channel_n=channel_n)
 
+        self.conv_1 = Conv2D(filters=conv_1_filters,
+                             kernel_size=conv_kernel_size,
+                             activation=tf.nn.relu)
 
-class CAModel(Model):
-    def __init__(self, ca_config: Dict) -> None:
-        super(CAModel, self).__init__()
-        self.ca_config = ca_config
-        self.channel_n = self.ca_config['channel_n']
-        self.fire_rate = self.ca_config['fire_rate']
+        self.conv_2 = Conv2D(filters=channel_n,
+                             kernel_size=conv_kernel_size,
+                             activation=None,  # ??????????????
+                             kernel_initializer=tf.zeros_initializer)  # ??????????????
 
-        # cells of "organism"
-        main_ca_shape = (ca_config['height'], ca_config['width'], ca_config['main_properties'])
-        self.phenotype = np.zeros(main_ca_shape)
-        # additional trainable cells properties
-        additional_ca_shape = (ca_config['height'], ca_config['width'], ca_config['additional_properties'])
-        self.cellar_properties = np.zeros(additional_ca_shape)
-        # full tensor with phenotype and additional cells properties
-        self.petri_dish = np.stack([self.phenotype, self.cellar_properties], axis=2)
+    def call(self, inputs, **kwargs):
+        petri_dish, angle, step_size = inputs
 
-        # trainable CNN model, that determine update common rule to all cells
-        self.update_cnn = tf.keras.Sequential([Conv2D(filters=self.ca_config[''],
-                                                      kernel_size=self.ca_config[''],
-                                                      activation=tf.nn.relu),
-                                               Conv2D(filters=self.ca_config[''],
-                                                      kernel_size=self.ca_config[''],
-                                                      activation=None,  # ??????????????
-                                                      kernel_initializer=tf.zeros_initializer)])  # ??????????????
+        pre_life_mask = self.get_living_mask(petri_dish)  # shape: [Batch, Height, Width, 1];
+        state_observation = self.observation([petri_dish, angle])  # kernel shape: [3, 3, self.channel_n, 3]
 
-    @tf.function
-    def get_living_mask(self):
-        """
-        Берет из общего тензора срез по оси каналов. А именно матрицу стоящую под индексом 3. Эта матрица, или этот
-        канал отвечает за маску отобрадающую состояния "живых клеток" в клеточном автомате.
-
-        Returns:
-            living_mask with shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
-        """
-        # todo: убрать хардкодинг
-        living_slice = self.petri_dish[:, :, :, 3:4]  # alpha shape: [Batch, Height, Width, 1]
-        pool_result = tf.nn.max_pool2d(input=living_slice, ksize=3, strides=[1, 1, 1, 1], padding='SAME')
-        living_mask = pool_result > 0.1  # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
-
-        return living_mask
-
-    @tf.function
-    def _get_perception_kernel(self, angle=0.0):
-        # get identify mask for single cell
-        identify_mask = np.float32([0, 1, 0])
-        identify_mask = np.outer(identify_mask, identify_mask)  # identify: [[000], [010], [000]];
-
-        # calculate Sobel filter as kernel for single cell
-        # Уточнение dx: Sobel filter 'X' value [[-1, -2, -1], [000], [1, 2, 1]]/8;
-        dx = np.outer([1, 2, 1], [-1, 0, 1]) / 8.0  # todo: почему делим на 8 ?
-        dy = dx.T  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
-
-        c, s = tf.cos(angle), tf.sin(angle)
-
-        kernel = tf.stack([identify_mask, c * dx - s * dy, c * dy + s * dx], -1)  # kernel shape: [3, 3, 3]
-        # А это видимо новый способ управлять осями тензоров в tf 2.*; таким образом можно увеличить размерность тензора
-        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, None, 3]
-        kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, self.channel_n, 3]
-
-        return kernel
-
-    @tf.function
-    def growth_step(self, angle: float = 0.0, step_size: float = 1.0):
-        pre_life_mask = self.get_living_mask()  # shape: [Batch, Height, Width, 1];
-        perception_kernel = self._get_perception_kernel(angle=angle)  # kernel shape: [3, 3, self.channel_n, 3]
-
-        # perceive neighbors cells states
-        observation = tf.nn.depthwise_conv2d(input=self.petri_dish,
-                                             filter=perception_kernel,
-                                             strides=[1, 1, 1, 1],
-                                             padding='SAME')  # shape: [Batch, Height, Width, self.channel_n * 3]
-        # apply update rule
-        ca_delta = self.update_cnn(observation) * step_size
+        conv_out = self.conv_1(state_observation)
+        ca_delta = self.conv_2(conv_out) * step_size
 
         # todo: почему мы используем рандом ?
-        update_mask = tf.random.uniform(tf.shape(self.petri_dish[:, :, :, :1])) <= self.fire_rate
-        self.petri_dish += ca_delta * tf.cast(update_mask, tf.float32)
+        update_mask = tf.random.uniform(tf.shape(petri_dish[:, :, :, :1])) <= self.fire_rate
+        petri_dish += ca_delta * tf.cast(update_mask, tf.float32)
 
-        post_life_mask = self.get_living_mask()
+        post_life_mask = self.get_living_mask(petri_dish)
         life_mask = pre_life_mask & post_life_mask
 
-        return self.petri_dish * tf.cast(life_mask, tf.float32)
+        new_state = petri_dish * tf.cast(life_mask, tf.float32)
+
+        return new_state
