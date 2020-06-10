@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 
 from embryogenesis.model.old_ca_model import CAModel
-from embryogenesis.model.train import loss_f, make_circle_masks, train_step, generate_pool_figures, plot_loss, \
+from embryogenesis.model.train_functions import loss_f, make_circle_masks, train_step, generate_pool_figures, plot_loss, \
     export_model, visualize_batch, SamplePool
 from embryogenesis.model.utils import load_emoji
 

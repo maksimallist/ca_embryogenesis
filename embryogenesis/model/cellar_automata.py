@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer
@@ -74,9 +75,11 @@ class UpdateRule(Model):
                  channel_n: int,
                  conv_1_filters: int = 128,
                  conv_kernel_size: int = 1,
+                 step_size: int = 1,
                  **kwargs):
         super(UpdateRule, self).__init__(name=name, **kwargs)
         self.fire_rate = tf.cast(fire_rate, tf.float32)
+        self.step_size = tf.cast(step_size, tf.float32)
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
         self.observation = StateObservation(channel_n=channel_n)
 
@@ -90,13 +93,13 @@ class UpdateRule(Model):
                              kernel_initializer=tf.zeros_initializer)  # ??????????????
 
     def call(self, inputs, **kwargs):
-        petri_dish, angle, step_size = inputs
+        petri_dish, angle = inputs
 
         pre_life_mask = self.get_living_mask(petri_dish)  # shape: [Batch, Height, Width, 1];
         state_observation = self.observation([petri_dish, angle])  # kernel shape: [3, 3, self.channel_n, 3]
 
         conv_out = self.conv_1(state_observation)
-        ca_delta = self.conv_2(conv_out) * step_size
+        ca_delta = self.conv_2(conv_out) * self.step_size
 
         # todo: почему мы используем рандом ?
         update_mask = tf.random.uniform(tf.shape(petri_dish[:, :, :, :1])) <= self.fire_rate
@@ -108,3 +111,33 @@ class UpdateRule(Model):
         new_state = petri_dish * tf.cast(life_mask, tf.float32)
 
         return new_state
+
+
+class PetriDish:  # бывший SamplePool
+    def __init__(self, *, _parent=None, _parent_idx=None, **slots):
+        self._parent = _parent
+        self._parent_idx = _parent_idx
+        self._slot_names = slots.keys()
+        self._size = None
+        for k, v in slots.items():
+            if self._size is None:
+                self._size = len(v)
+            assert self._size == len(v)
+            setattr(self, k, np.asarray(v))
+
+    def sample(self, n):
+        idx = np.random.choice(self._size, n, False)
+        batch = {k: getattr(self, k)[idx] for k in self._slot_names}
+        batch = PetriDish(**batch, _parent=self, _parent_idx=idx)
+        return batch
+
+    def commit(self):
+        for k in self._slot_names:
+            getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
+
+    @staticmethod
+    def make_seed(size, channel_n: int, batch_size: int = 1):
+        x = np.zeros([batch_size, size, size, channel_n], np.float32)
+        # todo: сделать выбор осей через аргумент функции или self
+        x[:, size // 2, size // 2, 3:] = 1.0
+        return x
