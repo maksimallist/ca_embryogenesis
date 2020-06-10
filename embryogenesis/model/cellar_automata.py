@@ -1,4 +1,5 @@
 from typing import Tuple, Optional, Union
+from pathlib import Path
 
 import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
@@ -197,6 +198,10 @@ class UpdateRuleTrainer:
         lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000], [lr, lr * 0.1])
         self.optimizer = tf.keras.optimizers.Adam(lr_sched)
 
+        self.root = Path(
+            "/Users/a17264288/PycharmProjects/cellar_automata_experiments/embryogenesis/experiments/exp_1/checkpoints")
+        self.root.mkdir(parents=True, exist_ok=False)
+
     @tf.function
     def loss_f(self, batch_cells: np.array):
         return tf.reduce_mean(tf.square(to_rgba(batch_cells) - self.target), [-2, -3, -1])
@@ -253,15 +258,17 @@ class UpdateRuleTrainer:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
                 x, loss = self.train_step(batch)
 
-            # step_i = len(loss_log)
+            step_i = len(loss_log)
             loss_log.append(loss.numpy())
+
+            if step_i % 100 == 0:
+                # clear_output()
+                # visualize_batch(x0, x, step_i)
+                # plot_loss(loss_log)
+                # export_model(ca, 'train_log/%04d' % step_i)
+                self.trainable_rule.save(str(self.root))
 
             # if step_i % 10 == 0:
             #     generate_pool_figures(pool, step_i)
-            # if step_i % 100 == 0:
-            #     clear_output()
-            #     visualize_batch(x0, x, step_i)
-            #     plot_loss(loss_log)
-            #     export_model(ca, 'train_log/%04d' % step_i)
 
             print(f"\r step: {len(loss_log)}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
