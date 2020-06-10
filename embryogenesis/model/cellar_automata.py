@@ -193,6 +193,10 @@ class UpdateRuleTrainer:
         self.use_pattern_pool = use_pattern_pool
         self.damage_n = damage_n
 
+        lr = 2e-3
+        lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000], [lr, lr * 0.1])
+        self.optimizer = tf.keras.optimizers.Adam(lr_sched)
+
     @tf.function
     def loss_f(self, batch_cells: np.array):
         return tf.reduce_mean(tf.square(to_rgba(batch_cells) - self.target), [-2, -3, -1])
@@ -210,6 +214,22 @@ class UpdateRuleTrainer:
 
         return mask
 
+    @tf.function
+    def train_step(self, x):
+        iter_n = tf.random.uniform([], 64, 96, tf.int32)
+
+        with tf.GradientTape() as g:
+            for i in tf.range(iter_n):
+                x = ca(x)
+            loss = tf.reduce_mean(loss_f(x))
+
+        grads = g.gradient(loss, ca.weights)
+        grads = [g / (tf.norm(g) + 1e-8) for g in grads]
+
+        self.optimizer.apply_gradients(zip(grads, ca.weights))
+
+        return x, loss
+
     def train(self):
         seed = self.petri_dish.make_seed(return_seed=True)
         loss_log = []
@@ -226,22 +246,22 @@ class UpdateRuleTrainer:
                     damage = 1.0 - self.make_circle_masks(self.damage_n).numpy()[..., None]
                     batch[-self.damage_n:] *= damage
 
-                x, loss = train_step(batch)
+                x, loss = self.train_step(batch)
                 self.petri_dish.commit(batch_cells=x, cells_idx=cells_idx)
 
             else:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
-                x, loss = train_step(batch)
+                x, loss = self.train_step(batch)
 
             step_i = len(loss_log)
             loss_log.append(loss.numpy())
 
-            if step_i % 10 == 0:
-                generate_pool_figures(pool, step_i)
-            if step_i % 100 == 0:
-                clear_output()
-                visualize_batch(x0, x, step_i)
-                plot_loss(loss_log)
-                export_model(ca, 'train_log/%04d' % step_i)
+            # if step_i % 10 == 0:
+            #     generate_pool_figures(pool, step_i)
+            # if step_i % 100 == 0:
+            #     clear_output()
+            #     visualize_batch(x0, x, step_i)
+            #     plot_loss(loss_log)
+            #     export_model(ca, 'train_log/%04d' % step_i)
 
-            print('\r step: %d, log10(loss): %.3f' % (len(loss_log), np.log10(loss)), end='')
+            print(f"\r step: {len(loss_log)}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
