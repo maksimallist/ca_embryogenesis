@@ -1,8 +1,10 @@
+from typing import Tuple
+
 import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer
-from typing import Tuple
+
 
 class StateObservation(Layer):
     def __init__(self,
@@ -114,38 +116,44 @@ class UpdateRule(Model):
 
 
 class PetriDish:  # бывший SamplePool
-    def __init__(self, channel_n: int,
+    def __init__(self,
+                 channel_n: int,
                  shape: Tuple[int, int],
+                 pool_size: int = 1024,
                  live_state_axis: int = 3,
-                 morph_axis: Tuple[int, int] = (0, 2),
-                 *, _parent=None, _parent_idx=None, **slots):
-
-        self._parent = _parent
-        self._parent_idx = _parent_idx
-        self._slot_names = slots.keys()
-        self._size = None
-
-        for k, v in slots.items():
-            if self._size is None:
-                self._size = len(v)
-            assert self._size == len(v)
-            setattr(self, k, np.asarray(v))
-
-
-
+                 morph_axis: Tuple[int, int] = (0, 2)):
+        # cells shape
         self.channel_n = channel_n
         self.height, self.width = shape
 
+        # axis description
         self.live_state_axis = live_state_axis
         self.morph_axis = morph_axis
         self.additional_axis = (self.live_state_axis + 1, self.channel_n - 1)
 
-        self.cells_seed = self.make_seed()
+        # main attributes
+        self.cells = np.zeros([self.height, self.width, self.channel_n], np.float32)
+        self.pool_size = pool_size
+        self.petri_dish = None
 
-    def make_seed(self):
-        cells = np.zeros([self.height, self.width, self.channel_n], np.float32)
-        cells[self.height // 2, self.width // 2, self.morph_axis[1] + 1:] = 1.0
-        return cells
+    def make_seed(self) -> None:
+        self.cells[self.height // 2, self.width // 2, self.morph_axis[1] + 1:] = 1.0
+
+    def create_petri_dish(self) -> None:
+        self.make_seed()
+        self.petri_dish = np.repeat(self.cells[None, ...], repeats=self.pool_size, axis=0)
+
+    def sample(self, batch_size: int = 32) -> Tuple[np.array, np.array]:
+        if not self.petri_dish:
+            self.create_petri_dish()
+
+        batch_idx = np.random.choice(self.pool_size, batch_size, False)
+        batch = self.petri_dish[batch_idx]
+
+        return batch, batch_idx
+
+    def commit(self, batch_cells: np.array, cells_idx: np.array) -> None:
+        self.petri_dish[cells_idx] = batch_cells
 
     # todo: убрать отсюда tensorflow
     @tf.function
@@ -161,13 +169,3 @@ class PetriDish:  # бывший SamplePool
         mask = tf.cast(x * x + y * y < 1.0, tf.float32)
 
         return mask
-
-    def sample(self, batch_size: int):
-        idx = np.random.choice(self._size, batch_size, False)
-        batch = {k: getattr(self, k)[idx] for k in self._slot_names}
-        batch = PetriDish(**batch, _parent=self, _parent_idx=idx)
-        return batch
-
-    def commit(self):
-        for k in self._slot_names:
-            getattr(self._parent, k)[self._parent_idx] = getattr(self, k)
