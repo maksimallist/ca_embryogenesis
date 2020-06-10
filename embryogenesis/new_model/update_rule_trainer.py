@@ -1,17 +1,21 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import tensorflow as tf
+from IPython.display import clear_output
 from tensorflow.keras import Model
 
 from embryogenesis.new_model.petri_dish import PetriDish
 from embryogenesis.new_model.utils import load_emoji, to_rgba
+from embryogenesis.new_model.visualize_functions import visualize_batch, generate_pool_figures, to_rgb
 
 
 class UpdateRuleTrainer:
     def __init__(self,
                  root: Path,
+                 exp_name: str,
                  petri_dish: PetriDish,
                  rule_model: Model,
                  target_image: str,
@@ -20,8 +24,18 @@ class UpdateRuleTrainer:
                  train_steps: int,
                  use_pattern_pool: bool,
                  damage_n: Optional[int] = None,
-                 target_padding: int = 16) -> None:
+                 target_padding: int = 16,
+                 jupyter: bool = False) -> None:
+        # experiments infrastructure attributes
+        self.root = root
+        self.exp_name = exp_name + '_' + datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.checkpoints_folder = None
+        self.pictures_folder = None
+        self.last_pictures_folder = None
+        self.tensorboard_logs = None
+        self.jupyter = jupyter
 
+        # main attributes
         self.petri_dish = petri_dish
         self.trainable_rule = rule_model
 
@@ -41,8 +55,22 @@ class UpdateRuleTrainer:
         lr_scheduler = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000], [lr, lr * 0.1])
         self.optimizer = tf.keras.optimizers.Adam(lr_scheduler)
 
-        self.root = root
-        self.root.mkdir(parents=True, exist_ok=False)
+    def prepare_exp_folder(self):
+        exp_root = self.root.joinpath(self.exp_name)
+        exp_root.mkdir(parents=True, exist_ok=False)
+
+        self.checkpoints_folder = exp_root.joinpath('checkpoints')
+        self.checkpoints_folder.mkdir()
+
+        self.pictures_folder = exp_root.joinpath('pictures')
+        self.pictures_folder.mkdir()
+
+        self.tensorboard_logs = exp_root.joinpath('tensorboard_logs')
+        self.tensorboard_logs.mkdir()
+        file_writer = tf.summary.create_file_writer(str(self.tensorboard_logs))
+        file_writer.set_as_default()
+        # Using the file writer, log the target image.
+        tf.summary.image("Target image", to_rgb(self.target), step=0)
 
     @tf.function
     def loss_f(self, batch_cells: np.array):
@@ -78,8 +106,18 @@ class UpdateRuleTrainer:
 
         return input_tensor, loss
 
+    def create_rule_imprint(self, train_step: int, pre_state: np.array, post_state: np.array):
+        model_path = self.checkpoints_folder.joinpath(str(train_step))
+        model_path.mkdir()
+        self.trainable_rule.save(str(model_path))
+
+        self.last_pictures_folder = self.pictures_folder.joinpath(str(train_step))
+        self.last_pictures_folder.mkdir()
+        visualize_batch(pre_state=pre_state, post_state=post_state, train_step=train_step,
+                        save_path=str(self.last_pictures_folder), jupyter=self.jupyter)
+
     def train(self):
-        for step_i in range(self.train_steps + 1):
+        for step in range(self.train_steps + 1):
             if self.use_pattern_pool:
                 seed = self.petri_dish.make_seed(return_seed=True)
                 batch, cells_idx = self.petri_dish.sample(batch_size=self.batch_size)
@@ -99,13 +137,21 @@ class UpdateRuleTrainer:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
                 x, loss = self.train_step(batch)
 
-            # if step_i % 10 == 0:
-            #     generate_pool_figures(pool, step_i)
+            if step % 100 == 0:
+                if self.jupyter:
+                    clear_output()
 
-            if step_i % 100 == 0:
-                self.trainable_rule.save(str(self.root))
-                # clear_output()
-                # visualize_batch(x0, x, step_i)
-                # plot_loss(loss_log)
+                self.create_rule_imprint(train_step=step, pre_state=batch, post_state=x)
+                tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
+                tf.summary.image("Example of CA figures", to_rgb(x[0]), step=step)
 
-            print(f"\r step: {step_i}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
+            if step % 10 == 0:
+                pool_states = self.petri_dish.petri_dish
+                pool_figures = generate_pool_figures(pool_states=pool_states,
+                                                     train_step=step,
+                                                     save_path=str(self.last_pictures_folder),
+                                                     return_pool=True)
+
+                tf.summary.image("Pool CA figures", pool_figures, max_outputs=25, step=step)
+
+            print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
