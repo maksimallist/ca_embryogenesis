@@ -1,5 +1,5 @@
-from typing import Tuple, Optional, Union
 from pathlib import Path
+from typing import Tuple, Optional, Union
 
 import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
