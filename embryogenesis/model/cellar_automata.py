@@ -1,9 +1,11 @@
-from typing import Tuple
+from typing import Tuple, Optional, Union
 
 import numpy as np
 import tensorflow as tf  # TensorFlow version >= 2.0
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer
+
+from embryogenesis.model.utils import load_emoji, to_rgba
 
 
 class StateObservation(Layer):
@@ -132,16 +134,24 @@ class PetriDish:  # бывший SamplePool
         self.additional_axis = (self.live_state_axis + 1, self.channel_n - 1)
 
         # main attributes
-        self.cells = np.zeros([self.height, self.width, self.channel_n], np.float32)
         self.pool_size = pool_size
+        self.cells = None
         self.petri_dish = None
 
-    def make_seed(self) -> None:
+    def make_seed(self, return_seed: bool = False) -> Union[None, np.array]:
+        self.cells = np.zeros([self.height, self.width, self.channel_n], np.float32)
         self.cells[self.height // 2, self.width // 2, self.morph_axis[1] + 1:] = 1.0
 
-    def create_petri_dish(self) -> None:
+        if return_seed:
+            return self.cells
+
+    def create_petri_dish(self, return_dish: bool = False, pool_size: Optional[int] = None) -> Union[None, np.array]:
         self.make_seed()
-        self.petri_dish = np.repeat(self.cells[None, ...], repeats=self.pool_size, axis=0)
+
+        if pool_size and return_dish:
+            return np.repeat(self.cells[None, ...], repeats=pool_size, axis=0)
+        else:
+            self.petri_dish = np.repeat(self.cells[None, ...], repeats=self.pool_size, axis=0)
 
     def sample(self, batch_size: int = 32) -> Tuple[np.array, np.array]:
         if not self.petri_dish:
@@ -155,12 +165,42 @@ class PetriDish:  # бывший SamplePool
     def commit(self, batch_cells: np.array, cells_idx: np.array) -> None:
         self.petri_dish[cells_idx] = batch_cells
 
-    # todo: убрать отсюда tensorflow
+
+class UpdateRuleTrainer:
+    def __init__(self,
+                 petri_dish: PetriDish,
+                 rule_model: Model,
+                 target_image: str,
+                 max_image_size: int,
+                 batch_size: int,
+                 train_steps: int,
+                 use_pattern_pool: bool,
+                 damage_n: Optional[int] = None,
+                 target_padding: int = 16) -> None:
+
+        self.petri_dish = petri_dish
+        self.trainable_rule = rule_model
+
+        # target attributes
+        target_image = load_emoji(target_image, max_size=max_image_size)
+        self.p = target_padding
+        self.target = tf.pad(target_image, [(self.p, self.p), (self.p, self.p), (0, 0)])
+        self.target_shape = self.target.shape[:2]
+
+        # train attributes
+        self.batch_size = batch_size
+        self.train_steps = train_steps
+        self.use_pattern_pool = use_pattern_pool
+        self.damage_n = damage_n
+
+    @tf.function
+    def loss_f(self, batch_cells: np.array):
+        return tf.reduce_mean(tf.square(to_rgba(batch_cells) - self.target), [-2, -3, -1])
+
     @tf.function
     def make_circle_masks(self, n: int):
-        """ Для повреждений в демо """
-        x = tf.linspace(-1.0, 1.0, self.width)[None, None, :]
-        y = tf.linspace(-1.0, 1.0, self.height)[None, :, None]
+        x = tf.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
+        y = tf.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
 
         center = tf.random.uniform([2, n, 1, 1], -0.5, 0.5)
         r = tf.random.uniform([n, 1, 1], 0.1, 0.4)
@@ -169,3 +209,39 @@ class PetriDish:  # бывший SamplePool
         mask = tf.cast(x * x + y * y < 1.0, tf.float32)
 
         return mask
+
+    def train(self):
+        seed = self.petri_dish.make_seed(return_seed=True)
+        loss_log = []
+
+        for i in range(self.train_steps + 1):
+            if self.use_pattern_pool:
+                batch, cells_idx = self.petri_dish.sample(batch_size=self.batch_size)
+                loss_rank = self.loss_f(batch).numpy().argsort()[::-1]
+
+                batch = batch[loss_rank]
+                batch[:1] = seed
+
+                if self.damage_n:
+                    damage = 1.0 - self.make_circle_masks(self.damage_n).numpy()[..., None]
+                    batch[-self.damage_n:] *= damage
+
+                x, loss = train_step(batch)
+                self.petri_dish.commit(batch_cells=x, cells_idx=cells_idx)
+
+            else:
+                batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
+                x, loss = train_step(batch)
+
+            step_i = len(loss_log)
+            loss_log.append(loss.numpy())
+
+            if step_i % 10 == 0:
+                generate_pool_figures(pool, step_i)
+            if step_i % 100 == 0:
+                clear_output()
+                visualize_batch(x0, x, step_i)
+                plot_loss(loss_log)
+                export_model(ca, 'train_log/%04d' % step_i)
+
+            print('\r step: %d, log10(loss): %.3f' % (len(loss_log), np.log10(loss)), end='')
