@@ -40,6 +40,29 @@ class PerceptionKernel(Layer):
         return kernel
 
 
+class LivingMask(Layer):
+    def __init__(self,
+                 life_threshold: float,  # 0.1
+                 left_border: int = 3,
+                 right_border: int = 4,
+                 kernel_size: int = 3,
+                 name='get living mask',
+                 **kwargs):
+        super(LivingMask, self).__init__(name=name, **kwargs)
+        self.life_threshold = life_threshold
+        self.left_border = left_border
+        self.right_border = right_border
+        self.kernel_size = kernel_size
+
+    def call(self, inputs, **kwargs):
+        living_slice = inputs[:, :, :, self.left_border:self.right_border]  # alpha shape: [Batch, Height, Width, 1]
+        pool_result = tf.nn.max_pool2d(input=living_slice, ksize=self.kernel_size, strides=[1, 1, 1, 1], padding='SAME')
+        # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
+        living_mask = pool_result > self.life_threshold
+
+        return living_mask
+
+
 class UpdateRule(Model):
     pass
 
