@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union, List
 
 import numpy as np
 import tensorflow as tf
@@ -22,9 +22,8 @@ class UpdateRuleTrainer:
                  target_image: np.array,
                  batch_size: int,
                  train_steps: int,
-                 use_pattern_pool: bool,
+                 use_pattern_pool: Union[int, List[int]],
                  damage_n: Optional[int] = None,
-                 target_padding: int = 16,
                  learning_rate: float = 2e-3,
                  boundaries: int = 2000,
                  lr_multiplier: float = 0.1,
@@ -46,7 +45,7 @@ class UpdateRuleTrainer:
         self.trainable_rule = rule_model
 
         # target attributes
-        self.target = tf.pad(target_image, [(target_padding, target_padding), (target_padding, target_padding), (0, 0)])
+        self.target = target_image
         self.target_shape = self.target.shape[:2]
 
         # train attributes
@@ -66,6 +65,8 @@ class UpdateRuleTrainer:
         self.right_end_of_range = right_end_of_range
         self.grad_norm_value = grad_norm_value
 
+        self.prepare_exp_folder()
+
     def prepare_exp_folder(self):
         exp_root = self.root.joinpath(self.exp_name)
         exp_root.mkdir(parents=True, exist_ok=False)
@@ -81,7 +82,7 @@ class UpdateRuleTrainer:
         file_writer = tf.summary.create_file_writer(str(self.tensorboard_logs))
         file_writer.set_as_default()
         # Using the file writer, log the target image.
-        tf.summary.image("Target image", to_rgb(self.target), step=0)
+        tf.summary.image("Target image", to_rgb(self.target)[None, ...], step=0)
 
     @tf.function
     def loss_f(self, batch_cells: np.array):
@@ -101,13 +102,13 @@ class UpdateRuleTrainer:
         return mask
 
     @tf.function
-    def train_step(self, input_tensor):
+    def train_step(self, input_tensor, angle=0.0):
         # sample random int from train steps range
         iter_n = tf.random.uniform([], self.left_end_of_range, self.right_end_of_range, tf.int32)
 
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
-                input_tensor = self.trainable_rule(input_tensor)
+                input_tensor = self.trainable_rule([input_tensor, angle])
             loss = tf.reduce_mean(self.loss_f(input_tensor))
 
         grads = g.gradient(loss, self.trainable_rule.weights)
@@ -120,7 +121,10 @@ class UpdateRuleTrainer:
     def create_rule_imprint(self, train_step: int, pre_state: np.array, post_state: np.array):
         model_path = self.checkpoints_folder.joinpath(str(train_step))
         model_path.mkdir()
-        self.trainable_rule.save(str(model_path))
+
+        # TODO: fix it !!!
+        # self.trainable_rule.save(str(model_path))
+        # export_model(self.trainable_rule, '%04d' % train_step, channel_n=16)
 
         self.last_pictures_folder = self.pictures_folder.joinpath(str(train_step))
         self.last_pictures_folder.mkdir()
@@ -132,6 +136,7 @@ class UpdateRuleTrainer:
             if self.use_pattern_pool:
                 seed = self.petri_dish.make_seed(return_seed=True)
                 batch, cells_idx = self.petri_dish.sample(batch_size=self.batch_size)
+
                 loss_rank = self.loss_f(batch).numpy().argsort()[::-1]
 
                 batch = batch[loss_rank]
@@ -154,7 +159,7 @@ class UpdateRuleTrainer:
 
                 self.create_rule_imprint(train_step=step, pre_state=batch, post_state=x)
                 tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
-                tf.summary.image("Example of CA figures", to_rgb(x[0]), step=step)
+                tf.summary.image("Example of CA figures", to_rgb(x[0])[None, ...], step=step)
 
             if step % 10 == 0:
                 pool_states = self.petri_dish.petri_dish
@@ -163,6 +168,6 @@ class UpdateRuleTrainer:
                                                      save_path=str(self.last_pictures_folder),
                                                      return_pool=True)
 
-                tf.summary.image("Pool CA figures", pool_figures, max_outputs=25, step=step)
+                tf.summary.image("Pool CA figures", pool_figures[None, ...], max_outputs=25, step=step)
 
             print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')

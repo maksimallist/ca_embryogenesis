@@ -7,7 +7,7 @@ class StateObservation(Layer):
     def __init__(self,
                  channel_n: int,
                  norm_value: int = 8,
-                 name='perception kernel',
+                 name='perception_kernel',
                  **kwargs):
         super(StateObservation, self).__init__(name=name, **kwargs)
         self.channel_n = channel_n
@@ -49,7 +49,7 @@ class LivingMask(Layer):
                  left_border: int = 3,
                  right_border: int = 4,
                  kernel_size: int = 3,
-                 name='get living mask',
+                 name='get_living_mask',
                  **kwargs):
         super(LivingMask, self).__init__(name=name, **kwargs)
         self.life_threshold = life_threshold

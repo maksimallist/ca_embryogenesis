@@ -13,7 +13,7 @@ experiment_config = 'train_config.json'
 with open(experiment_config, 'r') as conf:
     config = json.load(conf)
 
-target_img = load_emoji("🦎", max_size=48)
+target_img = load_emoji("🦎", max_size=48) 🦎🦎🦎
 # запринтить пример картинки
 # imshow(zoom(to_rgb(target_img), 2), fmt='png')
 # ----------------------------------------------------------------------------------------------------------------------
