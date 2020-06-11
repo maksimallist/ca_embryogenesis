@@ -6,7 +6,7 @@ from embryogenesis.new_model.update_rule_model import UpdateRule
 from embryogenesis.new_model.update_rule_trainer import UpdateRuleTrainer
 from embryogenesis.new_model.utils import load_image
 
-main_root = Path("/home/mks/work/projects/cellar_automata_experiments")
+main_root = Path("/Users/a17264288/PycharmProjects/cellar_automata_experiments")
 root = main_root.joinpath('experiments')
 
 # load experiment config
@@ -14,13 +14,10 @@ experiment_config = str(main_root.joinpath('embryogenesis', 'new_model', 'exp_co
 with open(experiment_config, 'r') as conf:
     config = json.load(conf)
 
-
-def load_emoji(max_size):
-    url = f"https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u1f98e.png"
-    return load_image(url, max_size)
-
-
-target_img = load_emoji(max_size=40)
+source = "https://github.com/google-research/self-organising-systems/blob/master/assets/"
+planaria = source + "growing_ca/planaria2_48.png?raw=true"
+salamander = "https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u1f98e.png"
+target_img = load_image(salamander, max_size=40)
 
 sampler = PetriDish(target_image=target_img,
                     target_padding=config['ca_params']['target_padding'],

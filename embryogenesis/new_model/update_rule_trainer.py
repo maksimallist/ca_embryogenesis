@@ -126,6 +126,14 @@ class UpdateRuleTrainer:
         # self.trainable_rule.save(str(model_path))
         # export_model(self.trainable_rule, '%04d' % train_step, channel_n=16)
 
+        # todo: вариант решения
+        # from keras.layers import Input
+        # from keras.models import Model
+        #
+        # newInput = Input(batch_shape=(1, 128, 128, 3))
+        # newOutputs = oldModel(newInput)
+        # newModel = Model(newInput, newOutputs)
+
         self.last_pictures_folder = self.pictures_folder.joinpath(str(train_step))
         self.last_pictures_folder.mkdir()
         visualize_batch(pre_state=pre_state, post_state=post_state, train_step=train_step,
