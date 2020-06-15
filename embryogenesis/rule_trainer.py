@@ -103,13 +103,13 @@ class UpdateRuleTrainer:
         return mask
 
     @tf.function
-    def train_step(self, input_tensor, angle=0.0):
+    def train_step(self, input_tensor):
         # sample random int from train steps range
         iter_n = tf.random.uniform([], self.left_end_of_range, self.right_end_of_range, tf.int32)
 
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
-                input_tensor = self.trainable_rule([input_tensor, angle])
+                input_tensor = self.trainable_rule(input_tensor)
             loss = tf.reduce_mean(self.loss_f(input_tensor))
 
         grads = g.gradient(loss, self.trainable_rule.weights)
@@ -144,12 +144,12 @@ class UpdateRuleTrainer:
                     damage = 1.0 - self.make_circle_masks(self.damage_n).numpy()[..., None]
                     batch[-self.damage_n:] *= damage
 
-                x, loss = self.train_step(batch, angle=0.0)
+                x, loss = self.train_step(batch)
                 self.petri_dish.commit(batch_cells=x, cells_idx=cells_idx)
 
             else:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
-                x, loss = self.train_step(batch, angle=0.0)
+                x, loss = self.train_step(batch)
 
             if step % 100 == 0:
                 if self.jupyter:

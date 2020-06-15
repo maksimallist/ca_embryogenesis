@@ -14,7 +14,7 @@ class StateObservation(Layer):
         self.norm_value = norm_value
 
     def call(self, inputs, **kwargs):
-        state_tensor, angle = inputs
+        # state_tensor, angle = inputs
 
         # get identify mask for single cell
         identify_mask = tf.constant([0., 1.0, 0.], dtype=tf.float32)
@@ -27,7 +27,7 @@ class StateObservation(Layer):
         dx = tf.tensordot(x_1, x_2, axes=0) / self.norm_value  # todo: почему делим на 8 ?
         dy = tf.transpose(dx)  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
 
-        c, s = tf.cos(angle), tf.sin(angle)
+        c, s = tf.cos(0.0), tf.sin(0.0)
 
         kernel = tf.stack([identify_mask, c * dx - s * dy, c * dy + s * dx], -1)  # kernel shape: [3, 3, 3]
         # А это видимо новый способ управлять осями тензоров в tf 2.*; таким образом можно увеличить размерность тензора
@@ -35,7 +35,7 @@ class StateObservation(Layer):
         kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, self.channel_n, 3]
 
         # perceive neighbors cells states
-        observation = tf.nn.depthwise_conv2d(input=state_tensor,
+        observation = tf.nn.depthwise_conv2d(input=inputs,
                                              filter=kernel,
                                              strides=[1, 1, 1, 1],
                                              padding='SAME')  # shape: [Batch, Height, Width, self.channel_n * 3]
@@ -93,21 +93,21 @@ class UpdateRule(Model):
                              kernel_initializer=tf.zeros_initializer())  # ??????????????
 
     def call(self, inputs, **kwargs):
-        petri_dish, angle = inputs
-
-        pre_life_mask = self.get_living_mask(petri_dish)  # shape: [Batch, Height, Width, 1];
-        state_observation = self.observation([petri_dish, angle])  # kernel shape: [3, 3, self.channel_n, 3]
+        # petri_dish, angle = inputs
+        pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
+        # state_observation = self.observation([petri_dish, angle])  # kernel shape: [3, 3, self.channel_n, 3]
+        state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
 
         conv_out = self.conv_1(state_observation)
         ca_delta = self.conv_2(conv_out) * self.step_size
 
         # todo: почему мы используем рандом ?
-        update_mask = tf.random.uniform(tf.shape(petri_dish[:, :, :, :1])) <= self.fire_rate
-        petri_dish += ca_delta * tf.cast(update_mask, tf.float32)
+        update_mask = tf.random.uniform(tf.shape(inputs[:, :, :, :1])) <= self.fire_rate
+        inputs += ca_delta * tf.cast(update_mask, tf.float32)
 
-        post_life_mask = self.get_living_mask(petri_dish)
+        post_life_mask = self.get_living_mask(inputs)
         life_mask = pre_life_mask & post_life_mask
 
-        new_state = petri_dish * tf.cast(life_mask, tf.float32)
+        new_state = inputs * tf.cast(life_mask, tf.float32)
 
         return new_state

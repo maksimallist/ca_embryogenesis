@@ -5,8 +5,8 @@ from embryogenesis.cellar_automata import MorphCA
 
 os.environ['FFMPEG_BINARY'] = 'ffmpeg'
 main_root = Path("/home/mks/work/projects/cellar_automata_experiments")
-checkpoints = main_root.joinpath('experiments', 'test_20200615-221746', 'checkpoints', '8000')
-video_save_path = main_root.joinpath('experiments', 'test_20200615-221746')
+checkpoints = main_root.joinpath('experiments', 'test_20200616-012418', 'checkpoints', '200')
+video_save_path = main_root.joinpath('experiments', 'test_20200616-012418')
 
 cellar_automata = MorphCA(rule_model_path=checkpoints,
                           write_video=True,
