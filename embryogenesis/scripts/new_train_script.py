@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 from embryogenesis.petri_dish import PetriDish
-from embryogenesis.rule_model import UpdateRule
+from embryogenesis.new_rule_model import UpdateRule
 from embryogenesis.rule_trainer import UpdateRuleTrainer
 from embryogenesis.utils import load_image
 
@@ -57,7 +57,7 @@ model = UpdateRule(name='test_model',
 
 # create trainer for UpdateRule object
 trainer = UpdateRuleTrainer(root=root,
-                            exp_name='test',
+                            exp_name='new_test',
                             petri_dish=sampler,
                             rule_model=model,
                             target_image=padded_target,

@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras import Model
-from tensorflow.keras.layers import Conv2D, Layer, Input
+from tensorflow.keras.layers import Conv2D, Layer
 
 
 class StateObservation(Layer):

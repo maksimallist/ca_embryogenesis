@@ -60,7 +60,7 @@ class UpdateRuleTrainer:
         lr_scheduler = PiecewiseConstantDecay(boundaries=[self.boundaries],
                                               values=[self.lr, self.lr * self.lr_multiplier])
         self.optimizer = tf.keras.optimizers.Adam(lr_scheduler)
-        # self.trainable_rule.compile(optimizer=self.optimizer)
+        self.trainable_rule.compile(optimizer=self.optimizer)  # , loss=self.loss_f
 
         self.left_end_of_range = left_end_of_range
         self.right_end_of_range = right_end_of_range
