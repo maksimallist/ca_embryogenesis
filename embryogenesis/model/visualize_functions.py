@@ -28,7 +28,7 @@ def generate_pool_figures(pool_states: np.array,
     tiled_pool[:72, :] += (-tiled_pool[:72, :] + ones[:, None, None]) * fade[:, None, None]
     tiled_pool[-72:, :] += (-tiled_pool[-72:, :] + ones[:, None, None]) * fade[::-1, None, None]
 
-    imwrite(save_path + '%04d_pool.jpg' % train_step, tiled_pool)
+    imwrite(save_path + '/%04d_pool.jpg' % train_step, tiled_pool)
 
     if return_pool:
         return np.asarray(tiled_pool)
@@ -43,7 +43,7 @@ def visualize_batch(pre_state: np.array,
     vis1 = np.hstack(to_rgb(post_state).numpy())
     vis = np.vstack([vis0, vis1])
     # save pictures
-    imwrite(save_path + 'batches_%04d.jpg' % train_step, vis)
+    imwrite(save_path + '/batches_%04d.jpg' % train_step, vis)
     # visualize pictures in notebook or operation system
     if jupyter:
         print('batch (before/after):')
