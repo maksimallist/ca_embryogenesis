@@ -10,11 +10,11 @@ from embryogenesis.model.update_rule_trainer import UpdateRuleTrainer
 from embryogenesis.model.utils import load_image
 
 os.environ['FFMPEG_BINARY'] = 'ffmpeg'
-main_root = Path("/Users/a17264288/PycharmProjects/cellar_automata_experiments")
+main_root = Path("/home/mks/work/projects/cellar_automata_experiments")
 root = main_root.joinpath('experiments')
 
 # load experiment config
-experiment_config = str(main_root.joinpath('embryogenesis', 'model', 'exp_config.json'))
+experiment_config = str(main_root.joinpath('embryogenesis', 'exp_config.json'))
 with open(experiment_config, 'r') as conf:
     config = json.load(conf)
 
@@ -46,8 +46,8 @@ sampler = PetriDish(height=image_height,
 
 # create network that determine CA update rule
 model = UpdateRule(name='test_model',
-                   height=sampler.height,
-                   width=sampler.width,
+                   # height=sampler.height,
+                   # width=sampler.width,
                    channel_n=config['ca_params']['channel_n'],
                    fire_rate=config['update_rule']['cell_fire_rate'],
                    life_threshold=config['update_rule']['life_threshold'],

@@ -34,9 +34,15 @@ class MorphCA:
                  rule_model_path: Union[str, Path],
                  write_video: bool = False,
                  video_name: Optional[str] = None,
-                 save_video_path: Optional[Union[str, Path]] = None):
+                 save_video_path: Optional[Union[str, Path]] = None,
+                 print_summary: bool = True):
         self.rule = load_model(rule_model_path)
-        _, height, width, channel_n = self.rule.input_layer.shape
+        if print_summary:
+            self.rule.summary()
+        # TODO: исправить недорозумения со слоями inputs
+        # _, height, width, channel_n = self.rule.input.shape
+        height, width, channel_n = 72, 72, 16
+
         self.petri_dish = PetriDish(height=height, width=width, channel_n=channel_n)
         self.seed = self.petri_dish.make_seed(return_seed=True)[None, ...]
 

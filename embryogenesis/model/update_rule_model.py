@@ -71,16 +71,18 @@ class UpdateRule(Model):
                  name: str,
                  fire_rate: float,
                  life_threshold: float,  # 0.1
-                 height: int,
-                 width: int,
                  channel_n: int,
                  conv_1_filters: int = 128,
                  conv_kernel_size: int = 1,
                  step_size: int = 1,
                  **kwargs):
         super(UpdateRule, self).__init__(name=name, **kwargs)
-        self.input_layer = Input(shape=(None, height, width, channel_n))
-        self.angle_layer = Input(shape=(1,))
+
+        # self.input_layer = Input(shape=(None, height, width, channel_n))
+        # # self.angle_layer = Input(shape=(1,))
+        # height: int,
+        # width: int,
+
         self.fire_rate = tf.cast(fire_rate, tf.float32)
         self.step_size = tf.cast(step_size, tf.float32)
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
@@ -97,8 +99,6 @@ class UpdateRule(Model):
 
     def call(self, inputs, **kwargs):
         petri_dish, angle = inputs
-        # petri_dish = self.input_layer(petri_dish)
-        # angle = self.angle_layer(angle)
 
         pre_life_mask = self.get_living_mask(petri_dish)  # shape: [Batch, Height, Width, 1];
         state_observation = self.observation([petri_dish, angle])  # kernel shape: [3, 3, self.channel_n, 3]
