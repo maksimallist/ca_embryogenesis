@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 import tensorflow as tf
 
-from embryogenesis.model.utils import tile2d, imwrite, imshow
+from embryogenesis.utils import tile2d, imwrite, imshow
 
 
 @tf.function

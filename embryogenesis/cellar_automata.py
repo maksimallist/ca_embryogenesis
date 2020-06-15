@@ -5,9 +5,9 @@ import numpy as np
 import tqdm
 from tensorflow.keras.models import load_model
 
-from embryogenesis.model.petri_dish import PetriDish
-from embryogenesis.model.video_writer import VideoWriter
-from embryogenesis.model.visualize_functions import to_rgb
+from embryogenesis.petri_dish import PetriDish
+from embryogenesis.video_writer import VideoWriter
+from embryogenesis.visualize_functions import to_rgb
 
 
 def tile2d(a, w=None):

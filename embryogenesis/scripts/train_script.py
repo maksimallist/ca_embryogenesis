@@ -4,10 +4,10 @@ from pathlib import Path
 
 import numpy as np
 
-from embryogenesis.model.petri_dish import PetriDish
-from embryogenesis.model.update_rule_model import UpdateRule
-from embryogenesis.model.update_rule_trainer import UpdateRuleTrainer
-from embryogenesis.model.utils import load_image
+from embryogenesis.petri_dish import PetriDish
+from embryogenesis.update_rule_model import UpdateRule
+from embryogenesis.update_rule_trainer import UpdateRuleTrainer
+from embryogenesis.utils import load_image
 
 os.environ['FFMPEG_BINARY'] = 'ffmpeg'
 main_root = Path("/home/mks/work/projects/cellar_automata_experiments")

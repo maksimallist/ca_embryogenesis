@@ -8,9 +8,9 @@ from IPython.display import clear_output
 from tensorflow.keras import Model
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from embryogenesis.model.petri_dish import PetriDish
-from embryogenesis.model.utils import to_rgba
-from embryogenesis.model.visualize_functions import visualize_batch, generate_pool_figures, to_rgb
+from embryogenesis.petri_dish import PetriDish
+from embryogenesis.utils import to_rgba
+from embryogenesis.visualize_functions import visualize_batch, generate_pool_figures, to_rgb
 
 
 class UpdateRuleTrainer:
