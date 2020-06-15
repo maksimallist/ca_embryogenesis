@@ -55,7 +55,7 @@ model = UpdateRule(name='test_model',
 
 # create trainer for UpdateRule object
 trainer = UpdateRuleTrainer(root=root,
-                            exp_name='test',
+                            exp_name='salamander_8000',
                             petri_dish=sampler,
                             rule_model=model,
                             target_image=padded_target,
