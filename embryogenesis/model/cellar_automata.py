@@ -1,10 +1,13 @@
 from pathlib import Path
+import tqdm
 from typing import Optional, Union
 
 import numpy as np
 from tensorflow.keras.models import load_model
 
 from embryogenesis.model.petri_dish import PetriDish
+from embryogenesis.model.video_writer import VideoWriter
+from embryogenesis.model.visualize_functions import to_rgb
 
 
 def tile2d(a, w=None):
@@ -36,4 +39,27 @@ class MorphCA:
         assert (self.save_video_path and self.write_video) is True, ValueError("")
 
         self.rule = load_model(rule_model_path)
-        self.petri_dish = PetriDish(target_image=, target_padding=, channel_n=)
+        _, height, width, channel_n = self.rule.input_layer.shape
+        self.petri_dish = PetriDish(height=height, width=width, channel_n=channel_n)
+
+        # self.video_writer = VideoWriter('grow.mp4')
+
+    def step(self):
+        pass
+
+    def run_growth(self):
+        pass
+
+    def save_state(self):
+        pass
+
+    def write_video(self):
+        with VideoWriter('grow.mp4') as vid:
+            seed = self.petri_dish.make_seed(return_seed=True)[None, ...]
+            vid.add(zoom(tile2d(to_rgb(seed), 5), 2))
+            # grow
+            for _ in tqdm.trange(200):
+                seed = self.rule(seed)
+                vid.add(zoom(tile2d(to_rgb(seed), 5), 2))
+
+        # mvp.ipython_display('teaser.mp4', loop=True)
