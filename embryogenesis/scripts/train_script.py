@@ -5,8 +5,8 @@ from pathlib import Path
 import numpy as np
 
 from embryogenesis.petri_dish import PetriDish
-from embryogenesis.update_rule_model import UpdateRule
-from embryogenesis.update_rule_trainer import UpdateRuleTrainer
+from embryogenesis.rule_model import UpdateRule
+from embryogenesis.rule_trainer import UpdateRuleTrainer
 from embryogenesis.utils import load_image
 
 os.environ['FFMPEG_BINARY'] = 'ffmpeg'
