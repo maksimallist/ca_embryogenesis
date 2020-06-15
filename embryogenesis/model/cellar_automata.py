@@ -1,8 +1,8 @@
 from pathlib import Path
-import tqdm
 from typing import Optional, Union
 
 import numpy as np
+import tqdm
 from tensorflow.keras.models import load_model
 
 from embryogenesis.model.petri_dish import PetriDish
@@ -33,33 +33,53 @@ class MorphCA:
     def __init__(self,
                  rule_model_path: Union[str, Path],
                  write_video: bool = False,
+                 video_name: Optional[str] = None,
                  save_video_path: Optional[Union[str, Path]] = None):
-        self.write_video = write_video
-        self.save_video_path = save_video_path
-        assert (self.save_video_path and self.write_video) is True, ValueError("")
-
         self.rule = load_model(rule_model_path)
         _, height, width, channel_n = self.rule.input_layer.shape
         self.petri_dish = PetriDish(height=height, width=width, channel_n=channel_n)
+        self.seed = self.petri_dish.make_seed(return_seed=True)[None, ...]
 
-        # self.video_writer = VideoWriter('grow.mp4')
+        self.write_video = write_video
+        if write_video:
+            if isinstance(save_video_path, str):
+                save_video_path = Path(save_video_path)
 
-    def step(self):
-        pass
+            if video_name:
+                video_name = video_name.split('.')
 
-    def run_growth(self):
-        pass
+                if len(video_name) == 1:
+                    video_name = video_name[0] + '.mp4'
+                else:
+                    if video_name[-1] != 'mp4':
+                        video_name = video_name[0] + '.mp4'
+
+                save_video_path = save_video_path.joinpath(video_name)
+            else:
+                save_video_path = save_video_path.joinpath('mca_grow.mp4')
+
+            self.video_writer = VideoWriter(str(save_video_path))
+
+    def step(self, state):
+        return self.rule(state)
+
+    def run_growth(self, steps: int, return_state: bool = False):
+        if self.write_video:
+            with self.video_writer as video:
+                video.add(zoom(tile2d(to_rgb(self.seed), 5), 2))
+                state = self.seed
+                # grow
+                for _ in tqdm.trange(steps):
+                    state = self.rule(state)
+                    video.add(zoom(tile2d(to_rgb(state), 5), 2))
+        else:
+            state = self.seed
+            # grow
+            for _ in tqdm.trange(steps):
+                state = self.rule(state)
+
+        if return_state:
+            return state
 
     def save_state(self):
         pass
-
-    def write_video(self):
-        with VideoWriter('grow.mp4') as vid:
-            seed = self.petri_dish.make_seed(return_seed=True)[None, ...]
-            vid.add(zoom(tile2d(to_rgb(seed), 5), 2))
-            # grow
-            for _ in tqdm.trange(200):
-                seed = self.rule(seed)
-                vid.add(zoom(tile2d(to_rgb(seed), 5), 2))
-
-        # mvp.ipython_display('teaser.mp4', loop=True)
