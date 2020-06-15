@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 
 import numpy as np
+from tensorflow.keras.layers import Input
+from tensorflow.keras.models import Model
 
 from embryogenesis.petri_dish import PetriDish
 from embryogenesis.rule_model import UpdateRule
@@ -46,8 +48,6 @@ sampler = PetriDish(height=image_height,
 
 # create network that determine CA update rule
 model = UpdateRule(name='test_model',
-                   # height=sampler.height,
-                   # width=sampler.width,
                    channel_n=config['ca_params']['channel_n'],
                    fire_rate=config['update_rule']['cell_fire_rate'],
                    life_threshold=config['update_rule']['life_threshold'],
@@ -55,11 +55,16 @@ model = UpdateRule(name='test_model',
                    conv_kernel_size=config['update_rule']['conv_kernel_size'],
                    step_size=config['update_rule']['step_size'])
 
+input_dish = Input(shape=(None, sampler.height, sampler.width, sampler.channel_n))
+input_angle = Input(shape=(None, 1))
+update_rule = Model(inputs=[input_dish, input_angle], outputs=model)
+
+
 # create trainer for UpdateRule object
 trainer = UpdateRuleTrainer(root=root,
                             exp_name='test',
                             petri_dish=sampler,
-                            rule_model=model,
+                            rule_model=update_rule,
                             target_image=padded_target,
                             use_pattern_pool=use_pattern_pool,
                             damage_n=damage_n,

@@ -78,11 +78,6 @@ class UpdateRule(Model):
                  **kwargs):
         super(UpdateRule, self).__init__(name=name, **kwargs)
 
-        # self.input_layer = Input(shape=(None, height, width, channel_n))
-        # # self.angle_layer = Input(shape=(1,))
-        # height: int,
-        # width: int,
-
         self.fire_rate = tf.cast(fire_rate, tf.float32)
         self.step_size = tf.cast(step_size, tf.float32)
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
