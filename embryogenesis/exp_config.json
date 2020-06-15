@@ -1,0 +1,36 @@
+{
+  "target_padding": 16,
+  "experiment_type": "Regenerating",
+  "experiment_map": {
+    "Growing": 0,
+    "Persistent": 1,
+    "Regenerating": 2
+  },
+  "ca_params": {
+    "channel_n": 16,
+    "pool_size": 1024,
+    "live_state_axis": 3,
+    "morph_axis": [
+      0,
+      2
+    ]
+  },
+  "update_rule": {
+    "cell_fire_rate": 0.5,
+    "life_threshold": 0.1,
+    "conv_1_filters": 128,
+    "conv_kernel_size": 1,
+    "step_size": 1
+  },
+  "experiment_config": {
+    "batch_size": 8,
+    "train_steps": 8000,
+    "learning_rate": 2e-3,
+    "boundaries": 2000,
+    "lr_multiplier": 0.1,
+    "left_end_of_range": 64,
+    "right_end_of_range": 96,
+    "grad_norm_value": 1e-8,
+    "jupyter": false
+  }
+}

@@ -318,8 +318,7 @@ ca = CAModel()
 loss_log = []
 
 lr = 2e-3
-lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay(
-    [2000], [lr, lr * 0.1])
+lr_sched = tf.keras.optimizers.schedules.PiecewiseConstantDecay([2000], [lr, lr * 0.1])
 trainer = tf.keras.optimizers.Adam(lr_sched)
 
 loss0 = loss_f(seed).numpy()

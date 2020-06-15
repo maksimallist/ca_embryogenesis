@@ -29,14 +29,14 @@ def get_model(emoji='🦋', fire_rate=0.5, use_pool=1, damage_n=3, run=0, prefix
         return open(path + '.json', 'r').read()
 
 
+# ----------------------------------------------- Teaser --------------------------------------------------------
 # !wget -O models.zip 'https://github.com/google-research/self-organising-systems/blob/master/assets/growing_ca/models.zip?raw=true'
 # !unzip -oq models.zip
 
 EMOJI = '🦎😀💥👁🐠🦋🐞🕸🥨🎄'
 atlas = np.hstack([load_emoji(e) for e in EMOJI])
-imshow(atlas)
+# imshow(atlas)
 
-# ----------------------------------------------- Teaser --------------------------------------------------------
 models = [get_model(emoji, run=1) for emoji in EMOJI]
 
 with VideoWriter('teaser.mp4') as vid:
