@@ -27,6 +27,8 @@ sampler = PetriDish(target_image=target_img,
                     live_state_axis=config['ca_params']['live_state_axis'])
 
 model = UpdateRule(name='test_model',
+                   height=sampler.height,
+                   width=sampler.width,
                    channel_n=config['ca_params']['channel_n'],
                    fire_rate=config['update_rule']['cell_fire_rate'],
                    life_threshold=config['update_rule']['life_threshold'],

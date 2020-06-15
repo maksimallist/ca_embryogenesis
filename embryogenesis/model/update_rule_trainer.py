@@ -60,6 +60,8 @@ class UpdateRuleTrainer:
         lr_scheduler = PiecewiseConstantDecay(boundaries=[self.boundaries],
                                               values=[self.lr, self.lr * self.lr_multiplier])
         self.optimizer = tf.keras.optimizers.Adam(lr_scheduler)
+        # compile model
+        self.trainable_rule.compile(optimizer=self.optimizer)
 
         self.left_end_of_range = left_end_of_range
         self.right_end_of_range = right_end_of_range
@@ -121,18 +123,7 @@ class UpdateRuleTrainer:
     def create_rule_imprint(self, train_step: int, pre_state: np.array, post_state: np.array):
         model_path = self.checkpoints_folder.joinpath(str(train_step))
         model_path.mkdir()
-
-        # TODO: fix it !!!
-        # self.trainable_rule.save(str(model_path))
-        # export_model(self.trainable_rule, '%04d' % train_step, channel_n=16)
-
-        # todo: вариант решения
-        # from keras.layers import Input
-        # from keras.models import Model
-        #
-        # newInput = Input(batch_shape=(1, 128, 128, 3))
-        # newOutputs = oldModel(newInput)
-        # newModel = Model(newInput, newOutputs)
+        self.trainable_rule.save(filepath=str(model_path), overwrite=True, save_format="tf")
 
         self.last_pictures_folder = self.pictures_folder.joinpath(str(train_step))
         self.last_pictures_folder.mkdir()
@@ -154,12 +145,12 @@ class UpdateRuleTrainer:
                     damage = 1.0 - self.make_circle_masks(self.damage_n).numpy()[..., None]
                     batch[-self.damage_n:] *= damage
 
-                x, loss = self.train_step(batch)
+                x, loss = self.train_step(batch, angle=0.0)
                 self.petri_dish.commit(batch_cells=x, cells_idx=cells_idx)
 
             else:
                 batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
-                x, loss = self.train_step(batch)
+                x, loss = self.train_step(batch, angle=0.0)
 
             if step % 100 == 0:
                 if self.jupyter:
