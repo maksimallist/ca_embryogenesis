@@ -77,7 +77,7 @@ def load_image(url, max_size):
 
 def load_emoji(emoji, max_size):
     code = hex(ord(emoji))[2:].lower()
-    url = 'https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u%s.png' % code
+    url = f"https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u{code}.png"
     return load_image(url, max_size)
 
 

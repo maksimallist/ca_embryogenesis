@@ -1,16 +1,16 @@
 import json
 from pathlib import Path
 
-from embryogenesis.new_model.petri_dish import PetriDish
-from embryogenesis.new_model.update_rule_model import UpdateRule
-from embryogenesis.new_model.update_rule_trainer import UpdateRuleTrainer
-from embryogenesis.new_model.utils import load_image
+from embryogenesis.model.petri_dish import PetriDish
+from embryogenesis.model.update_rule_model import UpdateRule
+from embryogenesis.model.update_rule_trainer import UpdateRuleTrainer
+from embryogenesis.model.utils import load_image
 
 main_root = Path("/Users/a17264288/PycharmProjects/cellar_automata_experiments")
 root = main_root.joinpath('experiments')
 
 # load experiment config
-experiment_config = str(main_root.joinpath('embryogenesis', 'new_model', 'exp_config.json'))
+experiment_config = str(main_root.joinpath('embryogenesis', 'model', 'exp_config.json'))
 with open(experiment_config, 'r') as conf:
     config = json.load(conf)
 
