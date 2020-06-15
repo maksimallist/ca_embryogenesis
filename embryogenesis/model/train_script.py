@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+import numpy as np
+
 from embryogenesis.model.petri_dish import PetriDish
 from embryogenesis.model.update_rule_model import UpdateRule
 from embryogenesis.model.update_rule_trainer import UpdateRuleTrainer
@@ -21,13 +23,28 @@ planaria = source + "growing_ca/planaria2_48.png?raw=true"
 salamander = "https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u1f98e.png"
 target_img = load_image(salamander, max_size=40)
 
-sampler = PetriDish(target_image=target_img,
-                    target_padding=config['ca_params']['target_padding'],
-                    morph_axis=tuple(config['ca_params']['morph_axis']),
+# determine CA model type and experiments conditions
+exp_map = config['experiment_map']
+EXPERIMENT_N = exp_map[config['experiment_type']]
+
+use_pattern_pool = [0, 1, 1][EXPERIMENT_N]
+damage_n = [0, 0, 3][EXPERIMENT_N]  # Number of patterns to damage in a batch
+
+# pad target image to
+target_padding = config['target_padding']
+target_padding_map = ((target_padding, target_padding), (target_padding, target_padding), (0, 0))
+padded_target = np.pad(target_img, target_padding_map, 'constant', constant_values=0.0)
+image_height, image_width = padded_target.shape[:2]
+
+# create object that will creates CA cells grids
+sampler = PetriDish(height=image_height,
+                    width=image_width,
                     channel_n=config['ca_params']['channel_n'],
                     pool_size=config['ca_params']['pool_size'],
+                    morph_axis=tuple(config['ca_params']['morph_axis']),
                     live_state_axis=config['ca_params']['live_state_axis'])
 
+# create network that determine CA update rule
 model = UpdateRule(name='test_model',
                    height=sampler.height,
                    width=sampler.width,
@@ -38,14 +55,7 @@ model = UpdateRule(name='test_model',
                    conv_kernel_size=config['update_rule']['conv_kernel_size'],
                    step_size=config['update_rule']['step_size'])
 
-exp_map = config['experiment_map']
-EXPERIMENT_N = exp_map[config['experiment_type']]
-
-use_pattern_pool = [0, 1, 1][EXPERIMENT_N]
-damage_n = [0, 0, 3][EXPERIMENT_N]  # Number of patterns to damage in a batch
-
-padded_target = sampler.return_target()
-
+# create trainer for UpdateRule object
 trainer = UpdateRuleTrainer(root=root,
                             exp_name='test',
                             petri_dish=sampler,
@@ -55,4 +65,5 @@ trainer = UpdateRuleTrainer(root=root,
                             damage_n=damage_n,
                             **config['experiment_config'])
 
+# run training
 trainer.train()

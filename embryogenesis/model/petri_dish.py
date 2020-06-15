@@ -1,22 +1,18 @@
 from typing import Tuple, Optional, Union
 
 import numpy as np
-import tensorflow as tf
 
 
 class PetriDish:
     def __init__(self,
-                 target_image: np.array,
-                 target_padding: int,
+                 height: int,
+                 width: int,
                  channel_n: int,
                  pool_size: int = 1024,
                  live_state_axis: int = 3,
                  morph_axis: Tuple[int, int] = (0, 2)):
         # cells shape
-        self.channel_n = channel_n
-        self.target_image = tf.pad(target_image,
-                                   [(target_padding, target_padding), (target_padding, target_padding), (0, 0)])
-        self.height, self.width = self.target_image.shape[:2]
+        self.height, self.width, self.channel_n = height, width, channel_n
 
         # axis description
         self.live_state_axis = live_state_axis
@@ -27,9 +23,6 @@ class PetriDish:
         self.pool_size = pool_size
         self.cells = None
         self.petri_dish = None
-
-    def return_target(self):
-        return self.target_image.numpy()
 
     def make_seed(self, return_seed: bool = False) -> Union[None, np.array]:
         self.cells = np.zeros([self.height, self.width, self.channel_n], np.float32)

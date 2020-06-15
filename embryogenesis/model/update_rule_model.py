@@ -1,6 +1,3 @@
-from typing import List
-
-import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer, Input
@@ -83,7 +80,7 @@ class UpdateRule(Model):
                  **kwargs):
         super(UpdateRule, self).__init__(name=name, **kwargs)
         self.input_layer = Input(shape=(None, height, width, channel_n))
-        self.angle_layer = Input(shape=(1, ))
+        self.angle_layer = Input(shape=(1,))
         self.fire_rate = tf.cast(fire_rate, tf.float32)
         self.step_size = tf.cast(step_size, tf.float32)
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
