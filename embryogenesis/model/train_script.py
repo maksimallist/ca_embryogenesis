@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from embryogenesis.model.petri_dish import PetriDish
@@ -6,6 +7,7 @@ from embryogenesis.model.update_rule_model import UpdateRule
 from embryogenesis.model.update_rule_trainer import UpdateRuleTrainer
 from embryogenesis.model.utils import load_image
 
+os.environ['FFMPEG_BINARY'] = 'ffmpeg'
 main_root = Path("/Users/a17264288/PycharmProjects/cellar_automata_experiments")
 root = main_root.joinpath('experiments')
 

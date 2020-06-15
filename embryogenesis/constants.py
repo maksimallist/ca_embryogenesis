@@ -13,3 +13,8 @@ EXPERIMENT_MAP = {"Growing": 0, "Persistent": 1, "Regenerating": 2}
 EXPERIMENT_N = EXPERIMENT_MAP[EXPERIMENT_TYPE]
 USE_PATTERN_POOL = [0, 1, 1][EXPERIMENT_N]
 DAMAGE_N = [0, 0, 3][EXPERIMENT_N]  # Number of patterns to damage in a batch
+
+EMOJI = '🦎😀💥👁🐠🦋🐞🕸🥨🎄'
+PRETRAIN_MODELS = 'https://github.com/google-research/self-organising-systems/blob/master/assets/growing_ca/models.zip?raw=true'
+# !wget -O models.zip 'https://github.com/google-research/self-organising-systems/blob/master/assets/growing_ca/models.zip?raw=true'
+# !unzip -oq models.zip
