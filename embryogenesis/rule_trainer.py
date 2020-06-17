@@ -151,6 +151,7 @@ class UpdateRuleTrainer:
                 previous_state_batch = self.petri_dish.create_petri_dishes(return_dish=True, pool_size=self.batch_size)
                 next_state_batch, loss = self.train_step(previous_state_batch)
 
+            # todo: можно создать отдельный класс "experiments watcher"
             if step % 100 == 0:
                 if self.jupyter:
                     clear_output()
