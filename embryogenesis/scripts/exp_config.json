@@ -2,9 +2,18 @@
   "target_padding": 16,
   "experiment_type": "Regenerating",
   "experiment_map": {
-    "Growing": 0,
-    "Persistent": 1,
-    "Regenerating": 2
+    "Growing": {
+      "use_pattern_pool": 0,
+      "damage_n": 0
+    },
+    "Persistent": {
+      "use_pattern_pool": 1,
+      "damage_n": 0
+    },
+    "Regenerating": {
+      "use_pattern_pool": 1,
+      "damage_n": 3
+    }
   },
   "ca_params": {
     "channel_n": 16,
@@ -24,7 +33,7 @@
   },
   "experiment_config": {
     "batch_size": 8,
-    "train_steps": 100,
+    "train_steps": 1000,
     "learning_rate": 2e-3,
     "boundaries": 2000,
     "lr_multiplier": 0.1,
