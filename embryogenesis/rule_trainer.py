@@ -22,7 +22,7 @@ class UpdateRuleTrainer:
                  target_image: np.array,
                  batch_size: int,
                  train_steps: int,
-                 use_pattern_pool: Union[int, List[int]],
+                 use_pattern_pool: bool,
                  damage_n: Optional[int] = None,
                  learning_rate: float = 2e-3,
                  boundaries: int = 2000,
@@ -31,15 +31,6 @@ class UpdateRuleTrainer:
                  right_end_of_range: int = 96,
                  grad_norm_value: float = 1e-8,
                  jupyter: bool = False) -> None:
-        # experiments infrastructure attributes
-        self.root = root
-        self.exp_name = exp_name + '_' + datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.checkpoints_folder = None
-        self.pictures_folder = None
-        self.last_pictures_folder = None
-        self.tensorboard_logs = None
-        self.jupyter = jupyter
-
         # main attributes
         self.petri_dish = petri_dish
         self.trainable_rule = rule_model
@@ -66,6 +57,14 @@ class UpdateRuleTrainer:
         self.right_end_of_range = right_end_of_range
         self.grad_norm_value = grad_norm_value
 
+        # experiments infrastructure attributes
+        self.root = root
+        self.exp_name = exp_name + '_' + datetime.now().strftime("%Y%m%d-%H%M%S")
+        self.checkpoints_folder = None
+        self.pictures_folder = None
+        self.last_pictures_folder = None
+        self.tensorboard_logs = None
+        self.jupyter = jupyter
         self.prepare_exp_folder()
 
     def prepare_exp_folder(self):
@@ -80,6 +79,7 @@ class UpdateRuleTrainer:
 
         self.tensorboard_logs = exp_root.joinpath('tensorboard_logs')
         self.tensorboard_logs.mkdir()
+
         file_writer = tf.summary.create_file_writer(str(self.tensorboard_logs))
         file_writer.set_as_default()
         # Using the file writer, log the target image.

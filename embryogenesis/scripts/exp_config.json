@@ -3,15 +3,15 @@
   "experiment_type": "Regenerating",
   "experiment_map": {
     "Growing": {
-      "use_pattern_pool": 0,
+      "use_pattern_pool": false,
       "damage_n": 0
     },
     "Persistent": {
-      "use_pattern_pool": 1,
+      "use_pattern_pool": true,
       "damage_n": 0
     },
     "Regenerating": {
-      "use_pattern_pool": 1,
+      "use_pattern_pool": true,
       "damage_n": 3
     }
   },

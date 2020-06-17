@@ -24,12 +24,6 @@ if __name__ == '__main__':
     target_img = load_image(salamander, max_size=40)
 
     # determine CA model type and experiments conditions
-    # "experiment_map": {
-    #     "Growing": 0,
-    #     "Persistent": 1,
-    #     "Regenerating": 2
-    # },
-
     exp_map = config['experiment_map']
     training_mode = config['experiment_type']
     use_pattern_pool = exp_map[training_mode]['use_pattern_pool']
