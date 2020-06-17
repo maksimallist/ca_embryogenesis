@@ -148,7 +148,7 @@ class UpdateRuleTrainer:
                 self.petri_dish.commit(batch_cells=x, cells_idx=cells_idx)
 
             else:
-                batch = self.petri_dish.create_petri_dish(return_dish=True, pool_size=self.batch_size)
+                batch = self.petri_dish.create_petri_dishes(return_dish=True, pool_size=self.batch_size)
                 x, loss = self.train_step(batch)
 
             if step % 100 == 0:
@@ -160,7 +160,7 @@ class UpdateRuleTrainer:
                 tf.summary.image("Example of CA figures", to_rgb(x[0])[None, ...], step=step)
 
             if step % 10 == 0:
-                pool_states = self.petri_dish.petri_dish
+                pool_states = self.petri_dish.set_of_petri_dishes
                 pool_figures = generate_pool_figures(pool_states=pool_states,
                                                      train_step=step,
                                                      save_path=str(self.last_pictures_folder),

@@ -41,8 +41,8 @@ sampler = PetriDish(height=image_height,
                     width=image_width,
                     channel_n=config['ca_params']['channel_n'],
                     pool_size=config['ca_params']['pool_size'],
-                    morph_axis=tuple(config['ca_params']['morph_axis']),
-                    live_state_axis=config['ca_params']['live_state_axis'])
+                    live_state_axis=config['ca_params']['live_state_axis'],
+                    image_axis=tuple(config['ca_params']['image_axis']))
 
 # create network that determine CA update rule
 model = UpdateRule(name='salamander_2',
@@ -55,7 +55,7 @@ model = UpdateRule(name='salamander_2',
 
 # create trainer for UpdateRule object
 trainer = UpdateRuleTrainer(root=root,
-                            exp_name='salamander_2_5000',
+                            exp_name='salamander_2_100',
                             petri_dish=sampler,
                             rule_model=model,
                             target_image=padded_target,
