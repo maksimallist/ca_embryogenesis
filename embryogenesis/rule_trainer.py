@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
+from typing import Tuple, Optional
 
 import numpy as np
 import tensorflow as tf
@@ -23,13 +23,13 @@ class UpdateRuleTrainer:
                  batch_size: int,
                  train_steps: int,
                  use_pattern_pool: bool,
+                 train_ca_step_range: Tuple[int, int],
                  damage_n: Optional[int] = None,
                  learning_rate: float = 2e-3,
                  boundaries: int = 2000,
                  lr_multiplier: float = 0.1,
-                 train_ca_step_range: List[int, int] = (64, 96),
                  grad_norm_value: float = 1e-8,
-                 jupyter: bool = False) -> None:
+                 jupyter: bool = False):
         # main attributes
         self.petri_dish = petri_dish
         self.trainable_rule = rule_model
@@ -125,35 +125,39 @@ class UpdateRuleTrainer:
         visualize_batch(pre_state=pre_state, post_state=post_state, train_step=train_step,
                         save_path=str(self.last_pictures_folder), jupyter=self.jupyter)
 
+    def train_in_pool_mode(self):
+        seed = self.petri_dish.make_seed(return_seed=True)
+        previous_state_batch, cells_idx = self.petri_dish.sample(batch_size=self.batch_size)
+
+        loss_rank = self.loss_f(previous_state_batch).numpy().argsort()[::-1]
+
+        batch = previous_state_batch[loss_rank]
+        batch[:1] = seed
+
+        if self.damage_n:
+            damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
+            batch[-self.damage_n:] *= damage
+
+        next_state_batch, loss = self.train_step(batch)
+        self.petri_dish.commit(batch_cells=next_state_batch, cells_idx=cells_idx)
+
+        return next_state_batch, loss, previous_state_batch
+
     def train(self):
         for step in range(self.train_steps + 1):
             if self.use_pattern_pool:
-                seed = self.petri_dish.make_seed(return_seed=True)
-                batch, cells_idx = self.petri_dish.sample(batch_size=self.batch_size)
-
-                loss_rank = self.loss_f(batch).numpy().argsort()[::-1]
-
-                batch = batch[loss_rank]
-                batch[:1] = seed
-
-                if self.damage_n:
-                    damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
-                    batch[-self.damage_n:] *= damage
-
-                x, loss = self.train_step(batch)
-                self.petri_dish.commit(batch_cells=x, cells_idx=cells_idx)
-
+                next_state_batch, loss, previous_state_batch = self.train_in_pool_mode()
             else:
-                batch = self.petri_dish.create_petri_dishes(return_dish=True, pool_size=self.batch_size)
-                x, loss = self.train_step(batch)
+                previous_state_batch = self.petri_dish.create_petri_dishes(return_dish=True, pool_size=self.batch_size)
+                next_state_batch, loss = self.train_step(previous_state_batch)
 
             if step % 100 == 0:
                 if self.jupyter:
                     clear_output()
 
-                self.create_rule_imprint(train_step=step, pre_state=batch, post_state=x)
+                self.create_rule_imprint(train_step=step, pre_state=previous_state_batch, post_state=next_state_batch)
                 tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
-                tf.summary.image("Example of CA figures", to_rgb(x[0])[None, ...], step=step)
+                tf.summary.image("Example of CA figures", to_rgb(previous_state_batch[0])[None, ...], step=step)
 
             if step % 10 == 0:
                 pool_states = self.petri_dish.set_of_petri_dishes

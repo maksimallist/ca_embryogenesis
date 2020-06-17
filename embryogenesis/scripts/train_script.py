@@ -53,6 +53,14 @@ if __name__ == '__main__':
                        step_size=config['update_rule']['step_size'])
 
     # create trainer for UpdateRule object
+    batch_size = config["train_config"]["batch_size"]
+    train_steps = config["train_config"]["train_steps"]
+    learning_rate = config["train_config"]["learning_rate"]
+    boundaries = config["train_config"]["boundaries"]
+    lr_multiplier = config["train_config"]["lr_multiplier"]
+    grad_norm_value = config["train_config"]["grad_norm_value"]
+    train_ca_step_range = tuple(config["train_config"]["train_ca_step_range"])
+
     trainer = UpdateRuleTrainer(root=root,
                                 exp_name='salamander_2_1000',
                                 petri_dish=sampler,
@@ -60,7 +68,13 @@ if __name__ == '__main__':
                                 target_image=padded_target,
                                 use_pattern_pool=use_pattern_pool,
                                 damage_n=damage_n,
-                                **config['experiment_config'])
+                                batch_size=batch_size,
+                                train_steps=train_steps,
+                                learning_rate=learning_rate,
+                                boundaries=boundaries,
+                                lr_multiplier=lr_multiplier,
+                                train_ca_step_range=train_ca_step_range,
+                                grad_norm_value=grad_norm_value)
 
     # run training
     trainer.train()

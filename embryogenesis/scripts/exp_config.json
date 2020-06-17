@@ -1,4 +1,5 @@
 {
+  "jupyter": false,
   "target_padding": 16,
   "experiment_type": "Regenerating",
   "experiment_map": {
@@ -31,14 +32,16 @@
     "conv_kernel_size": 1,
     "step_size": 1
   },
-  "experiment_config": {
+  "train_config": {
     "batch_size": 8,
     "train_steps": 1000,
     "learning_rate": 2e-3,
     "boundaries": 2000,
     "lr_multiplier": 0.1,
-    "train_ca_step_range": [64, 96],
-    "grad_norm_value": 1e-8,
-    "jupyter": false
+    "train_ca_step_range": [
+      64,
+      96
+    ],
+    "grad_norm_value": 1e-8
   }
 }
