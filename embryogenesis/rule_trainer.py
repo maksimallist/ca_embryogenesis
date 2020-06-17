@@ -1,6 +1,6 @@
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Union, List
+from typing import Optional, List
 
 import numpy as np
 import tensorflow as tf
@@ -27,8 +27,7 @@ class UpdateRuleTrainer:
                  learning_rate: float = 2e-3,
                  boundaries: int = 2000,
                  lr_multiplier: float = 0.1,
-                 left_end_of_range: int = 64,
-                 right_end_of_range: int = 96,
+                 train_ca_step_range: List[int, int] = (64, 96),
                  grad_norm_value: float = 1e-8,
                  jupyter: bool = False) -> None:
         # main attributes
@@ -53,8 +52,7 @@ class UpdateRuleTrainer:
         self.optimizer = tf.keras.optimizers.Adam(lr_scheduler)
         self.trainable_rule.compile(optimizer=self.optimizer)  # , loss=self.loss_f
 
-        self.left_end_of_range = left_end_of_range
-        self.right_end_of_range = right_end_of_range
+        self.train_ca_step_range = train_ca_step_range
         self.grad_norm_value = grad_norm_value
 
         # experiments infrastructure attributes
@@ -90,7 +88,7 @@ class UpdateRuleTrainer:
         return tf.reduce_mean(tf.square(to_rgba(batch_cells) - self.target), [-2, -3, -1])
 
     @tf.function
-    def make_circle_masks(self, n: int):
+    def make_circle_damage_masks(self, n: int):
         x = tf.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
         y = tf.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
 
@@ -105,8 +103,7 @@ class UpdateRuleTrainer:
     @tf.function
     def train_step(self, input_tensor):
         # sample random int from train steps range
-        iter_n = tf.random.uniform([], self.left_end_of_range, self.right_end_of_range, tf.int32)
-
+        iter_n = tf.random.uniform([], self.train_ca_step_range[0], self.train_ca_step_range[1], tf.int32)
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
                 input_tensor = self.trainable_rule(input_tensor)
@@ -114,7 +111,6 @@ class UpdateRuleTrainer:
 
         grads = g.gradient(loss, self.trainable_rule.weights)
         grads = [g / (tf.norm(g) + self.grad_norm_value) for g in grads]
-
         self.optimizer.apply_gradients(zip(grads, self.trainable_rule.weights))
 
         return input_tensor, loss
@@ -141,7 +137,7 @@ class UpdateRuleTrainer:
                 batch[:1] = seed
 
                 if self.damage_n:
-                    damage = 1.0 - self.make_circle_masks(self.damage_n).numpy()[..., None]
+                    damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
                     batch[-self.damage_n:] *= damage
 
                 x, loss = self.train_step(batch)

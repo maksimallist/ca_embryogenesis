@@ -37,8 +37,7 @@
     "learning_rate": 2e-3,
     "boundaries": 2000,
     "lr_multiplier": 0.1,
-    "left_end_of_range": 64,
-    "right_end_of_range": 96,
+    "train_ca_step_range": [64, 96],
     "grad_norm_value": 1e-8,
     "jupyter": false
   }

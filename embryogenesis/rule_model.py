@@ -102,9 +102,10 @@ class UpdateRule(Model):
         conv_out = self.conv_1(state_observation)
         ca_delta = self.conv_2(conv_out) * self.step_size
 
-        # todo: почему мы используем рандом ?
-        update_mask = tf.random.uniform(tf.shape(inputs[:, :, :, :1])) <= self.fire_rate
-        inputs += ca_delta * tf.cast(update_mask, tf.float32)
+        # за счет накладывание случайной маски на чашку петри, симулируется стохастичность обновления состояния клеток,
+        # то есть клетки обновляются не одновременно, а как бы со случайным интервалом.
+        time_stochastic_mask = tf.random.uniform(tf.shape(inputs[:, :, :, :1])) <= self.fire_rate
+        inputs += ca_delta * tf.cast(time_stochastic_mask, tf.float32)
 
         post_life_mask = self.get_living_mask(inputs)
         life_mask = pre_life_mask & post_life_mask
