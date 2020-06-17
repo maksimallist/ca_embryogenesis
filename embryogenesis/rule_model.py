@@ -13,25 +13,29 @@ class StateObservation(Layer):
         self.channel_n = channel_n
         self.norm_value = norm_value
 
-    def call(self, inputs, **kwargs):
-        # state_tensor, angle = inputs
-
         # get identify mask for single cell
         identify_mask = tf.constant([0., 1.0, 0.], dtype=tf.float32)
-        identify_mask = tf.tensordot(identify_mask, identify_mask, axes=0)  # identify: [[000], [010], [000]];
+        self.identify_mask = tf.tensordot(identify_mask, identify_mask, axes=0)  # identify: [[000], [010], [000]];
+        # get Sobel filters for x and y axis
+        self.sobel_filter_x, self.sobel_filter_y = self.create_sobel_filter()
 
+    def create_sobel_filter(self):
         # calculate Sobel filter as kernel for single cell
         # Уточнение dx: Sobel filter 'X' value [[-1, -2, -1], [000], [1, 2, 1]]/8;
         x_1 = tf.constant([1.0, 2.0, 1.0], dtype=tf.float32)
         x_2 = tf.constant([-1.0, 0.0, 1.0], dtype=tf.float32)
-        dx = tf.tensordot(x_1, x_2, axes=0) / self.norm_value  # todo: почему делим на 8 ?
-        dy = tf.transpose(dx)  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
+        sobel_filter_x = tf.tensordot(x_1, x_2, axes=0) / self.norm_value  # todo: почему делим на 8 ?
+        sobel_filter_y = tf.transpose(sobel_filter_x)  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
 
-        c, s = tf.cos(0.0), tf.sin(0.0)
+        return sobel_filter_x, sobel_filter_y
 
-        kernel = tf.stack([identify_mask, c * dx - s * dy, c * dy + s * dx], -1)  # kernel shape: [3, 3, 3]
-        # А это видимо новый способ управлять осями тензоров в tf 2.*; таким образом можно увеличить размерность тензора
-        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, None, 3]
+    def call(self, inputs, **kwargs):
+        c, s = tf.cos(0.0), tf.sin(0.0)  # angle
+
+        kernel = tf.stack([self.identify_mask,
+                           c * self.sobel_filter_x - s * self.sobel_filter_y,
+                           c * self.sobel_filter_y + s * self.sobel_filter_x], -1)  # kernel shape: [3, 3, 3]
+        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
         kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, self.channel_n, 3]
 
         # perceive neighbors cells states
@@ -45,7 +49,7 @@ class StateObservation(Layer):
 
 class LivingMask(Layer):
     def __init__(self,
-                 life_threshold: float,  # 0.1
+                 life_threshold: float,
                  left_border: int = 3,
                  right_border: int = 4,
                  kernel_size: int = 3,
@@ -70,14 +74,13 @@ class UpdateRule(Model):
     def __init__(self,
                  name: str,
                  fire_rate: float,
-                 life_threshold: float,  # 0.1
+                 life_threshold: float,
                  channel_n: int,
                  conv_1_filters: int = 128,
                  conv_kernel_size: int = 1,
                  step_size: int = 1,
                  **kwargs):
         super(UpdateRule, self).__init__(name=name, **kwargs)
-
         self.fire_rate = tf.cast(fire_rate, tf.float32)
         self.step_size = tf.cast(step_size, tf.float32)
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
@@ -93,9 +96,7 @@ class UpdateRule(Model):
                              kernel_initializer=tf.zeros_initializer())  # ??????????????
 
     def call(self, inputs, **kwargs):
-        # petri_dish, angle = inputs
         pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
-        # state_observation = self.observation([petri_dish, angle])  # kernel shape: [3, 3, self.channel_n, 3]
         state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
 
         conv_out = self.conv_1(state_observation)
@@ -107,7 +108,6 @@ class UpdateRule(Model):
 
         post_life_mask = self.get_living_mask(inputs)
         life_mask = pre_life_mask & post_life_mask
-
         new_state = inputs * tf.cast(life_mask, tf.float32)
 
         return new_state

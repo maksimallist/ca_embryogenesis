@@ -45,7 +45,7 @@ sampler = PetriDish(height=image_height,
                     live_state_axis=config['ca_params']['live_state_axis'])
 
 # create network that determine CA update rule
-model = UpdateRule(name='test_model',
+model = UpdateRule(name='salamander_2',
                    channel_n=config['ca_params']['channel_n'],
                    fire_rate=config['update_rule']['cell_fire_rate'],
                    life_threshold=config['update_rule']['life_threshold'],
@@ -55,7 +55,7 @@ model = UpdateRule(name='test_model',
 
 # create trainer for UpdateRule object
 trainer = UpdateRuleTrainer(root=root,
-                            exp_name='salamander_8000',
+                            exp_name='salamander_2_5000',
                             petri_dish=sampler,
                             rule_model=model,
                             target_image=padded_target,
