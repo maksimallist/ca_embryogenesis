@@ -8,9 +8,8 @@ from IPython.display import clear_output
 from tensorflow.keras import Model
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from embryogenesis.petri_dish import PetriDish
-from embryogenesis.utils import to_rgba
-from embryogenesis.visualize_functions import visualize_batch, generate_pool_figures, to_rgb
+from embryogenesis.core.petri_dish import PetriDish
+from embryogenesis.core.image_utils import visualize_batch, generate_pool_figures, to_rgb
 
 
 class UpdateRuleTrainer:
@@ -85,7 +84,8 @@ class UpdateRuleTrainer:
 
     @tf.function
     def loss_f(self, batch_cells: np.array):
-        return tf.reduce_mean(tf.square(to_rgba(batch_cells) - self.target), [-2, -3, -1])
+        batch_cells = batch_cells[..., :4]  # to rgba
+        return tf.reduce_mean(tf.square(batch_cells - self.target), [-2, -3, -1])
 
     @tf.function
     def make_circle_damage_masks(self, n: int):
