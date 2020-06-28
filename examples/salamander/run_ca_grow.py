@@ -5,8 +5,8 @@ from core.cellar_automata import MorphCA
 
 os.environ['FFMPEG_BINARY'] = 'ffmpeg'
 main_root = Path(" ... ")
-checkpoints = main_root.joinpath('experiments', '', 'checkpoints', '')
-video_save_path = main_root.joinpath('experiments', '')
+checkpoints = main_root.joinpath('experiments', ' ... ', 'checkpoints', ' ... ')
+video_save_path = main_root.joinpath('experiments', ' ... ')
 
 cellar_automata = MorphCA(rule_model_path=checkpoints,
                           write_video=True,

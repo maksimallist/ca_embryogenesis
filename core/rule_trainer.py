@@ -8,8 +8,8 @@ from IPython.display import clear_output
 from tensorflow.keras import Model
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from core.petri_dish import PetriDish
 from core.image_utils import visualize_batch, generate_pool_figures, to_rgb
+from core.petri_dish import PetriDish
 
 
 class UpdateRuleTrainer:

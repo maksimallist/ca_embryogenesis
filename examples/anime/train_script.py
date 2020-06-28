@@ -6,19 +6,19 @@ import numpy as np
 from core.image_utils import open_image
 from core.petri_dish import PetriDish
 from core.rule_model import UpdateRule
-from core import UpdateRuleTrainer
+from core.rule_trainer import UpdateRuleTrainer
 
 if __name__ == '__main__':
     main_root = Path(" ... ")
     root = main_root.joinpath('experiments')
 
     # load experiment config
-    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'anime_config.json'))
+    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'config.json'))
     with open(experiment_config, 'r') as conf:
         config = json.load(conf)
 
     # get target image
-    target_path = str(main_root.joinpath('embryogenesis', 'data', 'clean_anime_target.png'))
+    target_path = str(main_root.joinpath('embryogenesis', 'data', 'anime_girl.png'))
     target_img = open_image(target_path, max_size=40)
 
     # pad target image to

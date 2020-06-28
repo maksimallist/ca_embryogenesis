@@ -6,14 +6,14 @@ import numpy as np
 from core.image_utils import load_emoji
 from core.petri_dish import PetriDish
 from core.rule_model import UpdateRule
-from core import UpdateRuleTrainer
+from core.rule_trainer import UpdateRuleTrainer
 
 if __name__ == '__main__':
     main_root = Path(" ... ")
     root = main_root.joinpath('experiments')
 
     # load experiment config
-    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'exp_config.json'))
+    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'config.json'))
     with open(experiment_config, 'r') as conf:
         config = json.load(conf)
 
