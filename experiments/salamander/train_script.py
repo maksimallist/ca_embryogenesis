@@ -3,13 +3,13 @@ from pathlib import Path
 
 import numpy as np
 
-from embryogenesis.petri_dish import PetriDish
-from embryogenesis.rule_model import UpdateRule
-from embryogenesis.rule_trainer import UpdateRuleTrainer
-from embryogenesis.utils import load_image
+from core.image_utils import load_emoji
+from core.petri_dish import PetriDish
+from core.rule_model import UpdateRule
+from core import UpdateRuleTrainer
 
 if __name__ == '__main__':
-    main_root = Path("/home/mks/work/projects/cellar_automata_experiments")
+    main_root = Path(" ... ")
     root = main_root.joinpath('experiments')
 
     # load experiment config
@@ -20,14 +20,11 @@ if __name__ == '__main__':
     # get target image
     # source = "https://github.com/google-research/self-organising-systems/blob/master/assets/"
     # planaria = source + "growing_ca/planaria2_48.png?raw=true"
-    salamander = "https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u1f98e.png"
-    target_img = load_image(salamander, max_size=40)
 
-    # determine CA model type and experiments conditions
-    exp_map = config['experiment_map']
-    training_mode = config['experiment_type']
-    use_pattern_pool = exp_map[training_mode]['use_pattern_pool']
-    damage_n = exp_map[training_mode]['damage_n']
+    # salamander = "https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u1f98e.png"
+    # target_img = load_image(salamander, max_size=40)
+
+    target_img = load_emoji("🦎", max_size=40)
 
     # pad target image to
     target_padding = config['target_padding']
@@ -51,6 +48,12 @@ if __name__ == '__main__':
                        conv_1_filters=config['update_rule']['conv_1_filters'],
                        conv_kernel_size=config['update_rule']['conv_kernel_size'],
                        step_size=config['update_rule']['step_size'])
+
+    # determine CA model type and experiments conditions
+    exp_map = config['experiment_map']
+    training_mode = config['experiment_type']
+    use_pattern_pool = exp_map[training_mode]['use_pattern_pool']
+    damage_n = exp_map[training_mode]['damage_n']
 
     # create trainer for UpdateRule object
     batch_size = config["train_config"]["batch_size"]

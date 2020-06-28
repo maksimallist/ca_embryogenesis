@@ -1,28 +1,15 @@
 import json
 from pathlib import Path
-from typing import Union
 
-import PIL.Image
-import PIL.ImageDraw
 import numpy as np
 
-from embryogenesis.petri_dish import PetriDish
-from embryogenesis.rule_model import UpdateRule
-from embryogenesis.rule_trainer import UpdateRuleTrainer
-
-
-def open_image(path: Union[str, Path], max_size: int):
-    img = PIL.Image.open(path)
-    img.thumbnail((max_size, max_size), PIL.Image.ANTIALIAS)
-    img = np.float32(img) / 255.0
-    # premultiply RGB by Alpha
-    img[..., :3] *= img[..., 3:]
-
-    return img
-
+from core.image_utils import open_image
+from core.petri_dish import PetriDish
+from core.rule_model import UpdateRule
+from core import UpdateRuleTrainer
 
 if __name__ == '__main__':
-    main_root = Path("/home/mks/work/projects/cellar_automata_experiments")
+    main_root = Path(" ... ")
     root = main_root.joinpath('experiments')
 
     # load experiment config
@@ -33,14 +20,6 @@ if __name__ == '__main__':
     # get target image
     target_path = str(main_root.joinpath('embryogenesis', 'data', 'clean_anime_target.png'))
     target_img = open_image(target_path, max_size=40)
-    # image_height, image_width = target_img.shape[:2]
-    # target_img = np.concatenate([target_img, np.zeros((image_height, image_width, 1))], axis=2)
-
-    # determine CA model type and experiments conditions
-    exp_map = config['experiment_map']
-    training_mode = config['experiment_type']
-    use_pattern_pool = exp_map[training_mode]['use_pattern_pool']
-    damage_n = exp_map[training_mode]['damage_n']
 
     # pad target image to
     target_padding = config['target_padding']
@@ -64,6 +43,12 @@ if __name__ == '__main__':
                        conv_1_filters=config['update_rule']['conv_1_filters'],
                        conv_kernel_size=config['update_rule']['conv_kernel_size'],
                        step_size=config['update_rule']['step_size'])
+
+    # determine CA model type and experiments conditions
+    exp_map = config['experiment_map']
+    training_mode = config['experiment_type']
+    use_pattern_pool = exp_map[training_mode]['use_pattern_pool']
+    damage_n = exp_map[training_mode]['damage_n']
 
     # create trainer for UpdateRule object
     batch_size = config["train_config"]["batch_size"]

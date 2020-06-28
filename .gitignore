@@ -9,7 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 experiments/
-embryogenesis/data/
+data/
 build/
 develop-eggs/
 dist/

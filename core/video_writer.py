@@ -2,6 +2,25 @@ import numpy as np
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 
+def tile2d(a, w=None):
+    a = np.asarray(a)
+    if w is None:
+        w = int(np.ceil(np.sqrt(len(a))))
+    th, tw = a.shape[1:3]
+    pad = (w - len(a)) % w
+    a = np.pad(a, [(0, pad)] + [(0, 0)] * (a.ndim - 1), 'constant')
+    h = len(a) // w
+    a = a.reshape([h, w] + list(a.shape[1:]))
+    a = np.rollaxis(a, 2, 1).reshape([th * h, tw * w] + list(a.shape[4:]))
+    return a
+
+
+def zoom(img, scale=4):
+    img = np.repeat(img, scale, 0)
+    img = np.repeat(img, scale, 1)
+    return img
+
+
 class VideoWriter:
     def __init__(self, filename, fps=30.0, **kw):
         self.writer = None
