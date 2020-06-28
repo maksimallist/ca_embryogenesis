@@ -7,16 +7,13 @@ import PIL.Image
 import PIL.ImageDraw
 import numpy as np
 import requests
-import tensorflow as tf
 from IPython.display import Image, display
 
 from core.video_writer import tile2d
 
 
-# todo: эта функция может быть и обычной, удалить tf отсюда
-@tf.function
-def to_alpha(x):
-    return tf.clip_by_value(x[..., 3:4], 0.0, 1.0)
+def to_alpha(x: np.array):
+    return np.clip(x[..., 3:4], a_min=0.0, a_max=1.0)
 
 
 def to_rgb(x):
@@ -106,8 +103,8 @@ def visualize_batch(pre_state: np.array,
                     train_step: int,
                     save_path: str,
                     jupyter: bool = False) -> None:
-    vis0 = np.hstack(to_rgb(pre_state).numpy())
-    vis1 = np.hstack(to_rgb(post_state).numpy())
+    vis0 = np.hstack(to_rgb(pre_state))  # .numpy()
+    vis1 = np.hstack(to_rgb(post_state))  # .numpy()
     vis = np.vstack([vis0, vis1])
     # save pictures
     image_save(save_path + '/batches_%04d.jpg' % train_step, vis)

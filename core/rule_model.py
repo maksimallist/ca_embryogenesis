@@ -24,7 +24,7 @@ class StateObservation(Layer):
         # Уточнение dx: Sobel filter 'X' value [[-1, -2, -1], [000], [1, 2, 1]]/8;
         x_1 = tf.constant([1.0, 2.0, 1.0], dtype=tf.float32)
         x_2 = tf.constant([-1.0, 0.0, 1.0], dtype=tf.float32)
-        sobel_filter_x = tf.tensordot(x_1, x_2, axes=0) / self.norm_value  # todo: почему делим на 8 ?
+        sobel_filter_x = tf.tensordot(x_1, x_2, axes=0) / self.norm_value
         sobel_filter_y = tf.transpose(sobel_filter_x)  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
 
         return sobel_filter_x, sobel_filter_y
