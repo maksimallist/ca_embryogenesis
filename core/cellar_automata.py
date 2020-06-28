@@ -4,9 +4,9 @@ from typing import Optional, Union
 import tqdm
 from tensorflow.keras.models import load_model
 
-from embryogenesis.core.petri_dish import PetriDish
-from embryogenesis.core.video_writer import VideoWriter, tile2d, zoom
-from embryogenesis.core.image_utils import to_rgb
+from core.petri_dish import PetriDish
+from core.video_writer import VideoWriter, tile2d, zoom
+from core.image_utils import to_rgb
 
 
 class MorphCA:

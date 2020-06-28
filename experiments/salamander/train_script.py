@@ -3,23 +3,28 @@ from pathlib import Path
 
 import numpy as np
 
-from embryogenesis.core.image_utils import open_image
-from embryogenesis.core.petri_dish import PetriDish
-from embryogenesis.core.rule_model import UpdateRule
-from embryogenesis.core.rule_trainer import UpdateRuleTrainer
+from core.image_utils import load_emoji
+from core.petri_dish import PetriDish
+from core.rule_model import UpdateRule
+from core import UpdateRuleTrainer
 
 if __name__ == '__main__':
     main_root = Path(" ... ")
     root = main_root.joinpath('experiments')
 
     # load experiment config
-    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'anime_config.json'))
+    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'exp_config.json'))
     with open(experiment_config, 'r') as conf:
         config = json.load(conf)
 
     # get target image
-    target_path = str(main_root.joinpath('embryogenesis', 'data', 'clean_anime_target.png'))
-    target_img = open_image(target_path, max_size=40)
+    # source = "https://github.com/google-research/self-organising-systems/blob/master/assets/"
+    # planaria = source + "growing_ca/planaria2_48.png?raw=true"
+
+    # salamander = "https://github.com/googlefonts/noto-emoji/raw/master/png/128/emoji_u1f98e.png"
+    # target_img = load_image(salamander, max_size=40)
+
+    target_img = load_emoji("🦎", max_size=40)
 
     # pad target image to
     target_padding = config['target_padding']
@@ -36,7 +41,7 @@ if __name__ == '__main__':
                         image_axis=tuple(config['ca_params']['image_axis']))
 
     # create network that determine CA update rule
-    model = UpdateRule(name='anime',
+    model = UpdateRule(name='salamander_2',
                        channel_n=config['ca_params']['channel_n'],
                        fire_rate=config['update_rule']['cell_fire_rate'],
                        life_threshold=config['update_rule']['life_threshold'],
@@ -60,7 +65,7 @@ if __name__ == '__main__':
     train_ca_step_range = tuple(config["train_config"]["train_ca_step_range"])
 
     trainer = UpdateRuleTrainer(root=root,
-                                exp_name='anime_regen',
+                                exp_name='salamander_2_1000',
                                 petri_dish=sampler,
                                 rule_model=model,
                                 target_image=padded_target,

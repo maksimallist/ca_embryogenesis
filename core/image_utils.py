@@ -10,7 +10,7 @@ import requests
 import tensorflow as tf
 from IPython.display import Image, display
 
-from embryogenesis.core.video_writer import tile2d
+from core.video_writer import tile2d
 
 
 # todo: эта функция может быть и обычной, удалить tf отсюда

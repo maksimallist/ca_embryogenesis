@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from embryogenesis.core.cellar_automata import MorphCA
+from core.cellar_automata import MorphCA
 
 os.environ['FFMPEG_BINARY'] = 'ffmpeg'
 main_root = Path(" ... ")
