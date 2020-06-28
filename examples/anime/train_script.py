@@ -9,16 +9,15 @@ from core.rule_model import UpdateRule
 from core.rule_trainer import UpdateRuleTrainer
 
 if __name__ == '__main__':
-    main_root = Path(" ... ")
-    root = main_root.joinpath('experiments')
+    main_root = Path(__file__).parent.absolute()
 
     # load experiment config
-    experiment_config = str(main_root.joinpath('embryogenesis', 'scripts', 'config.json'))
+    experiment_config = str(main_root.joinpath('config.json'))
     with open(experiment_config, 'r') as conf:
         config = json.load(conf)
 
     # get target image
-    target_path = str(main_root.joinpath('embryogenesis', 'data', 'anime_girl.png'))
+    target_path = str(main_root.joinpath('anime_girl.png'))
     target_img = open_image(target_path, max_size=40)
 
     # pad target image to
@@ -59,7 +58,7 @@ if __name__ == '__main__':
     grad_norm_value = config["train_config"]["grad_norm_value"]
     train_ca_step_range = tuple(config["train_config"]["train_ca_step_range"])
 
-    trainer = UpdateRuleTrainer(root=root,
+    trainer = UpdateRuleTrainer(root=main_root,
                                 exp_name='anime_regen',
                                 petri_dish=sampler,
                                 rule_model=model,
