@@ -8,7 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
-experiments/
+experiments/*
 data/
 build/
 develop-eggs/
@@ -132,3 +132,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/experiments/anime/
+/experiments/anime/
