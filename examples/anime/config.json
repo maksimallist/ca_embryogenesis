@@ -17,7 +17,7 @@
     }
   },
   "ca_params": {
-    "channel_n": 20,
+    "channel_n": 16,
     "pool_size": 1024,
     "live_state_axis": 3,
     "image_axis": [
