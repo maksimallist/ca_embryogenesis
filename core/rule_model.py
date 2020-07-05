@@ -83,6 +83,7 @@ class UpdateRule(Model):
         super(UpdateRule, self).__init__(name=name, **kwargs)
         self.fire_rate = tf.cast(fire_rate, tf.float32)
         self.step_size = tf.cast(step_size, tf.float32)
+
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
         self.observation = StateObservation(channel_n=channel_n)
 
@@ -97,8 +98,9 @@ class UpdateRule(Model):
 
     def call(self, inputs, **kwargs):
         pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
-        state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
 
+        #
+        state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
         conv_out = self.conv_1(state_observation)
         ca_delta = self.conv_2(conv_out) * self.step_size
 

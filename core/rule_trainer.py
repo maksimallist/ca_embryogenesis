@@ -107,6 +107,7 @@ class UpdateRuleTrainer:
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
                 input_tensor = self.trainable_rule(input_tensor)
+
             loss = tf.reduce_mean(self.loss_f(input_tensor))
 
         grads = g.gradient(loss, self.trainable_rule.weights)
