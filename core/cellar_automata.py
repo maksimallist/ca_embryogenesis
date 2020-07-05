@@ -10,12 +10,30 @@ from core.video_writer import VideoWriter, tile2d, zoom
 
 
 class MorphCA:
+    """
+    The class of reproducing functional of a cellular automaton. That is, the class contains both a set of cells and
+    their states, and cell renewal rules. Also, for this class, methods are implemented that allow you to apply update
+    rules to a set of cells to obtain a new set of their states, thereby simulating the process of developing
+    the entire system for a specified number of steps. One step in the simulation is the one-time application of the
+    update rule to the cell set, and the replacement of the old set of cell states with a new one.
+    """
     def __init__(self,
                  rule_model_path: Union[str, Path],
                  write_video: bool = False,
                  video_name: Optional[str] = None,
                  save_video_path: Optional[Union[str, Path]] = None,
                  print_summary: bool = True):
+        """
+        Loading the tensorflow checkpoints with neural network that determine cellar automaton update rule. And create
+        instance if class PetriDish that determine functional of cells set and their states.
+
+        Args:
+            rule_model_path: path to tensorflow checkpoint
+            write_video: boolean trigger that determine write the video with cellar automaton growth or not
+            video_name: name of the video file
+            save_video_path: save path for video file, if value is None, file will be saved in local folder
+            print_summary: determine print Keras network summary or not
+        """
         self.rule = load_model(rule_model_path)
         if print_summary:
             self.rule.summary()
@@ -47,9 +65,28 @@ class MorphCA:
             self.video_writer = VideoWriter(str(save_video_path))
 
     def step(self, state):
+        """
+        Once applies the update rule to a set of cells states.
+
+        Args:
+            state: numpy tensor with shape [batch_size, height, width, channel_n] containing states of cells
+
+        Returns:
+            New sells states
+        """
         return self.rule(state)
 
     def run_growth(self, steps: int, return_state: bool = False):
+        """
+        Run simulations of growth of cellular automata.
+
+        Args:
+            steps: number of simulation steps
+            return_state: trigger that determine return final cell states or not
+
+        Returns:
+            None or set of cell states
+        """
         if self.write_video:
             with self.video_writer as video:
                 video.add(zoom(tile2d(to_rgb(self.seed), 5), 2))
@@ -68,4 +105,5 @@ class MorphCA:
             return state
 
     def save_state(self):
+        # todo: добавить функцию сохранения состояния клеточного автомата как картинки, или как тензора
         pass
