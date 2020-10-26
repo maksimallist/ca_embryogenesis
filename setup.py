@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
-meta_path = os.path.join(__location__, 'ca_embryogenesis', '_meta.py')
+meta_path = os.path.join(__location__, '_meta.py')
 with open(meta_path) as meta:
     exec(meta.read())
 
