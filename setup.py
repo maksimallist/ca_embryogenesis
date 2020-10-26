@@ -1,7 +1,7 @@
 import os
 import re
 
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -32,6 +32,7 @@ def readme():
         text = f.read()
     text = re.sub(r']\((?!https?://)', r'](https://github.com/maksimallist/ca_embryogenesis/master', text)
     # text = re.sub(r'\ssrc="(?!https?://)', r' src="https://raw.githubusercontent.com/deepmipt/DeepPavlov/master/', text)
+
     return text
 
 
