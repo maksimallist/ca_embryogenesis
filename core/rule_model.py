@@ -123,45 +123,57 @@ class LivingMask(Layer):
 
 
 class UpdateRule(Model):
+    def get_config(self):
+        pass
+
     def __init__(self,
                  name: str,
-                 fire_rate: float,
-                 life_threshold: float,
                  channel_n: int,
+                 life_threshold: float,
                  conv_1_filters: int = 128,
                  conv_kernel_size: int = 1,
-                 step_size: int = 1,
+                 stochastic_update: bool = True,
+                 fire_rate: Optional[float] = 0.5,
                  **kwargs):
         super(UpdateRule, self).__init__(name=name, **kwargs)
-        self.fire_rate = tf.cast(fire_rate, tf.float32)
-        self.step_size = tf.cast(step_size, tf.float32)
+        # define the mode of cellar automata grow
+        self.stochastic_update = stochastic_update
+        if stochastic_update and fire_rate:
+            self.fire_rate = tf.cast(fire_rate, tf.float32)
+        elif stochastic_update and fire_rate is None:
+            raise ValueError("If you want to train the cellar automata in stochastic mode, "
+                             "the 'fire_rate' argument must be not None, but it is.")
 
+        # define the network layers
         self.get_living_mask = LivingMask(life_threshold=life_threshold)
         self.observation = StateObservation(channel_n=channel_n)
-
         self.conv_1 = Conv2D(filters=conv_1_filters,
                              kernel_size=conv_kernel_size,
                              activation=tf.nn.relu)
-
         self.conv_2 = Conv2D(filters=channel_n,
                              kernel_size=conv_kernel_size,
                              activation=None,
                              kernel_initializer=tf.zeros_initializer())
 
     def call(self, inputs, **kwargs):
+        # gets changing cell states
         pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
-
         state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
         conv_out = self.conv_1(state_observation)
-        ca_delta = self.conv_2(conv_out) * self.step_size
+        ca_delta = self.conv_2(conv_out)
 
-        # за счет накладывание случайной маски на чашку петри, симулируется стохастичность обновления состояния клеток,
-        # то есть клетки обновляются не одновременно, а как бы со случайным интервалом.
-        time_stochastic_mask = tf.random.uniform(tf.shape(inputs[:, :, :, :1])) <= self.fire_rate
-        inputs += ca_delta * tf.cast(time_stochastic_mask, tf.float32)
+        # update the cells states
+        if self.stochastic_update:
+            # за счет накладывания случайной маски, симулируется стохастичность обновления состояния клеток,
+            # то есть клетки обновляются не одновременно, а как бы со случайным интервалом.
+            time_stochastic_mask = tf.random.uniform(tf.shape(inputs[:, :, :, :1])) <= self.fire_rate
+            new_states = inputs + ca_delta * tf.cast(time_stochastic_mask, tf.float32)
+        else:
+            new_states = inputs + ca_delta
 
-        post_life_mask = self.get_living_mask(inputs)
+        # determine which cells became alive and which did not
+        post_life_mask = self.get_living_mask(new_states)
         life_mask = pre_life_mask & post_life_mask
-        new_state = inputs * tf.cast(life_mask, tf.float32)
+        new_states = new_states * tf.cast(life_mask, tf.float32)
 
-        return new_state
+        return new_states
