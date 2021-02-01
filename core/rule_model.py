@@ -2,7 +2,6 @@ from typing import Optional
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer
 
 
@@ -122,7 +121,7 @@ class LivingMask(Layer):
         return pool_result > self.life_threshold  # [Batch, Height, Width, 1]; заполнена нулями и единицами;
 
 
-class UpdateRule(Model):
+class UpdateRule(tf.keras.Model):
     def get_config(self):
         pass
 
