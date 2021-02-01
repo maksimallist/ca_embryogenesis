@@ -1,3 +1,6 @@
+from typing import Optional
+
+import numpy as np
 import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.layers import Conv2D, Layer
@@ -6,39 +9,96 @@ from tensorflow.keras.layers import Conv2D, Layer
 class StateObservation(Layer):
     def __init__(self,
                  channel_n: int,
-                 norm_value: int = 8,
+                 kernel_type: str = 'sobel',
+                 custom_kernel: Optional[np.array] = None,
+                 kernel_norm_value: int = 8,
                  observation_angle: float = 0.0,
                  name='perception_kernel',
                  **kwargs):
         super(StateObservation, self).__init__(name=name, **kwargs)
+        self.channel_n = channel_n
+        self.norm_value = tf.constant(kernel_norm_value, dtype=tf.float32)
+
+        # calculate angle attributes
+        self.observation_angle = tf.constant(observation_angle, dtype=tf.float32)
+        self.angle_cos, self.angle_sin = tf.cos(self.observation_angle), tf.sin(self.observation_angle)
+
         # get identify mask for single cell
         self.identify_mask = tf.constant([[0.0, 0.0, 0.0],
                                           [0.0, 1.0, 0.0],
                                           [0.0, 0.0, 0.0]], dtype=tf.float32)
 
-        # create Sobel operators for 'x' and 'y' axis
-        sobel_filter_x = tf.constant([[-1.0, 0.0, 1.0],
-                                      [-2.0, 0.0, 2.0],
-                                      [-1.0, 0.0, 1.0]], dtype=tf.float32) / norm_value
-
-        sobel_filter_y = tf.constant([[-1.0, -2.0, -1.0],
-                                      [0.0, 0.0, 0.0],
-                                      [1.0, 2.0, 1.0]], dtype=tf.float32) / norm_value
-
         # create kernel for depthwise_conv2d layer
-        observation_angle = tf.constant(observation_angle, dtype=tf.float32)
-        # kernel shape: [3, 3, 3]
-        kernel = tf.stack([self.identify_mask,
-                           tf.cos(observation_angle) * sobel_filter_x - tf.sin(observation_angle) * sobel_filter_y,
-                           tf.cos(observation_angle) * sobel_filter_y + tf.sin(observation_angle) * sobel_filter_x], -1)
-
-        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
-        kernel = tf.repeat(input=kernel, repeats=channel_n, axis=2)  # kernel shape: [3, 3, channel_n, 3]
+        if kernel_type == 'sobel':
+            kernel = self.create_sobel_kernel()
+        elif kernel_type == 'scharr':
+            kernel = self.create_scharr_kernel()
+        elif kernel_type == 'custom':
+            kernel = self.create_custom_kernel(dx_kernel=custom_kernel)
+        else:
+            raise ValueError(f"The 'kernel_type' argument must be ['sobel', 'scharr', 'custom'] or None, "
+                             f"but {kernel_type} was found.")
 
         # create perception layer
         self.perception = tf.nn.depthwise_conv2d(filter=kernel,
                                                  strides=[1, 1, 1, 1],
                                                  padding='SAME')  # shape: [Batch, Height, Width, channel_n * 3]
+
+    def create_sobel_kernel(self):
+        # create Sobel operators for 'x' and 'y' axis
+        sobel_filter_x = tf.constant([[1.0, 0.0, -1.0],
+                                      [2.0, 0.0, -2.0],
+                                      [1.0, 0.0, -1.0]], dtype=tf.float32) / self.norm_value
+
+        sobel_filter_y = tf.constant([[1.0, 2.0, 1.0],
+                                      [0.0, 0.0, 0.0],
+                                      [-1.0, -2.0, -1.0]], dtype=tf.float32) / self.norm_value
+
+        kernel = tf.stack([self.identify_mask,  # kernel shape: [3, 3, 3]
+                           self.angle_cos * sobel_filter_x - self.angle_sin * sobel_filter_y,
+                           self.angle_cos * sobel_filter_y + self.angle_sin * sobel_filter_x], -1)
+        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
+        kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, channel_n, 3]
+
+        return kernel
+
+    def create_scharr_kernel(self):
+        # create Scharr operators for 'x' and 'y' axis
+        scharr_filter_x = tf.constant([[3.0, 0.0, -3.0],
+                                       [10.0, 0.0, -10.0],
+                                       [3.0, 0.0, -3.0]], dtype=tf.float32) / self.norm_value
+
+        scharr_filter_y = tf.constant([[3.0, 10.0, 3.0],
+                                       [0.0, 0.0, 0.0],
+                                       [-3.0, -10.0, -3.0]], dtype=tf.float32) / self.norm_value
+
+        kernel = tf.stack([self.identify_mask,  # kernel shape: [3, 3, 3]
+                           self.angle_cos * scharr_filter_x - self.angle_sin * scharr_filter_y,
+                           self.angle_cos * scharr_filter_y + self.angle_sin * scharr_filter_x], -1)
+        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
+        kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, channel_n, 3]
+
+        return kernel
+
+    def create_custom_kernel(self, dx_kernel: Optional[np.array]):
+        if dx_kernel is None:
+            raise ValueError("If you want create your custom kernel than the layer argument 'dx_kernel' "
+                             "must be not None, but it is.")
+        else:
+            if dx_kernel.shape != (3, 3):
+                raise ValueError(f"Shape of custom kernel must be (3, 3), but {dx_kernel.shape} was found.")
+            else:
+                # create custom operators for 'x' and 'y' axis
+                custom_filter_x = tf.constant(dx_kernel, dtype=tf.float32) / self.norm_value
+                custom_filter_y = tf.constant(tf.transpose(dx_kernel), dtype=tf.float32) / self.norm_value
+
+                kernel = tf.stack([self.identify_mask,  # kernel shape: [3, 3, 3]
+                                   self.angle_cos * custom_filter_x - self.angle_sin * custom_filter_y,
+                                   self.angle_cos * custom_filter_y + self.angle_sin * custom_filter_x], -1)
+                kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
+                kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, channel_n, 3]
+
+        return kernel
 
     def call(self, inputs, **kwargs):
         # perceive neighbors cells states
