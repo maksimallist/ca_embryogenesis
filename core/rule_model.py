@@ -107,25 +107,19 @@ class StateObservation(Layer):
 
 class LivingMask(Layer):
     def __init__(self,
-                 life_threshold: float,
-                 left_border: int = 3,
-                 right_border: int = 4,
+                 life_threshold: float = 0.1,
+                 live_axis: int = 3,
                  kernel_size: int = 3,
                  name='get_living_mask',
                  **kwargs):
         super(LivingMask, self).__init__(name=name, **kwargs)
         self.life_threshold = life_threshold
-        self.left_border = left_border
-        self.right_border = right_border
-        self.kernel_size = kernel_size
+        self.live_axis = live_axis
+        self.live_mask = tf.nn.max_pool2d(ksize=kernel_size, strides=[1, 1, 1, 1], padding='SAME')
 
     def call(self, inputs, **kwargs):
-        living_slice = inputs[:, :, :, self.left_border:self.right_border]  # alpha shape: [Batch, Height, Width, 1]
-        pool_result = tf.nn.max_pool2d(input=living_slice, ksize=self.kernel_size, strides=[1, 1, 1, 1], padding='SAME')
-        # living_mask shape: [Batch, Height, Width, 1]; заполнена нулями и единицами;
-        living_mask = pool_result > self.life_threshold
-
-        return living_mask
+        pool_result = self.live_mask(input=inputs[:, :, :, self.live_axis])  # alpha shape: [Batch, Height, Width, 1]
+        return pool_result > self.life_threshold  # [Batch, Height, Width, 1]; заполнена нулями и единицами;
 
 
 class UpdateRule(Model):
@@ -151,8 +145,8 @@ class UpdateRule(Model):
 
         self.conv_2 = Conv2D(filters=channel_n,
                              kernel_size=conv_kernel_size,
-                             activation=None,  # ??????????????
-                             kernel_initializer=tf.zeros_initializer())  # ??????????????
+                             activation=None,
+                             kernel_initializer=tf.zeros_initializer())
 
     def call(self, inputs, **kwargs):
         pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
