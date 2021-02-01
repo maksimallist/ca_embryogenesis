@@ -7,44 +7,42 @@ class StateObservation(Layer):
     def __init__(self,
                  channel_n: int,
                  norm_value: int = 8,
+                 observation_angle: float = 0.0,
                  name='perception_kernel',
                  **kwargs):
         super(StateObservation, self).__init__(name=name, **kwargs)
-        self.channel_n = channel_n
-        self.norm_value = norm_value
-
         # get identify mask for single cell
-        identify_mask = tf.constant([0., 1.0, 0.], dtype=tf.float32)
-        self.identify_mask = tf.tensordot(identify_mask, identify_mask, axes=0)  # identify: [[000], [010], [000]];
-        # get Sobel filters for x and y axis
-        self.sobel_filter_x, self.sobel_filter_y = self.create_sobel_filter()
+        self.identify_mask = tf.constant([[0.0, 0.0, 0.0],
+                                          [0.0, 1.0, 0.0],
+                                          [0.0, 0.0, 0.0]], dtype=tf.float32)
 
-    def create_sobel_filter(self):
-        # calculate Sobel filter as kernel for single cell
-        # Уточнение dx: Sobel filter 'X' value [[-1, -2, -1], [000], [1, 2, 1]]/8;
-        x_1 = tf.constant([1.0, 2.0, 1.0], dtype=tf.float32)
-        x_2 = tf.constant([-1.0, 0.0, 1.0], dtype=tf.float32)
-        sobel_filter_x = tf.tensordot(x_1, x_2, axes=0) / self.norm_value
-        sobel_filter_y = tf.transpose(sobel_filter_x)  # dx: Sobel filter 'X' value [[1, 2, 1], [000], [-1, -2, -1]]/8;
+        # create Sobel operators for 'x' and 'y' axis
+        sobel_filter_x = tf.constant([[-1.0, 0.0, 1.0],
+                                      [-2.0, 0.0, 2.0],
+                                      [-1.0, 0.0, 1.0]], dtype=tf.float32) / norm_value
 
-        return sobel_filter_x, sobel_filter_y
+        sobel_filter_y = tf.constant([[-1.0, -2.0, -1.0],
+                                      [0.0, 0.0, 0.0],
+                                      [1.0, 2.0, 1.0]], dtype=tf.float32) / norm_value
+
+        # create kernel for depthwise_conv2d layer
+        observation_angle = tf.constant(observation_angle, dtype=tf.float32)
+        # kernel shape: [3, 3, 3]
+        kernel = tf.stack([self.identify_mask,
+                           tf.cos(observation_angle) * sobel_filter_x - tf.sin(observation_angle) * sobel_filter_y,
+                           tf.cos(observation_angle) * sobel_filter_y + tf.sin(observation_angle) * sobel_filter_x], -1)
+
+        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
+        kernel = tf.repeat(input=kernel, repeats=channel_n, axis=2)  # kernel shape: [3, 3, channel_n, 3]
+
+        # create perception layer
+        self.perception = tf.nn.depthwise_conv2d(filter=kernel,
+                                                 strides=[1, 1, 1, 1],
+                                                 padding='SAME')  # shape: [Batch, Height, Width, channel_n * 3]
 
     def call(self, inputs, **kwargs):
-        c, s = tf.cos(0.0), tf.sin(0.0)  # angle
-
-        kernel = tf.stack([self.identify_mask,
-                           c * self.sobel_filter_x - s * self.sobel_filter_y,
-                           c * self.sobel_filter_y + s * self.sobel_filter_x], -1)  # kernel shape: [3, 3, 3]
-        kernel = kernel[:, :, None, :]  # kernel shape: [3, 3, 1, 3]
-        kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [3, 3, self.channel_n, 3]
-
         # perceive neighbors cells states
-        observation = tf.nn.depthwise_conv2d(input=inputs,
-                                             filter=kernel,
-                                             strides=[1, 1, 1, 1],
-                                             padding='SAME')  # shape: [Batch, Height, Width, self.channel_n * 3]
-
-        return observation
+        return self.perception(input=inputs)
 
 
 class LivingMask(Layer):
@@ -99,7 +97,6 @@ class UpdateRule(Model):
     def call(self, inputs, **kwargs):
         pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
 
-        #
         state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
         conv_out = self.conv_1(state_observation)
         ca_delta = self.conv_2(conv_out) * self.step_size
