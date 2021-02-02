@@ -28,6 +28,12 @@ class PetriDish:
         self.cells_tensor = np.zeros([self.height, self.width, self.channels], np.float32)
         self.cell_state_initialization()
 
+    def summary(self):
+        print(f"=================================== The cellar automata summary ===================================")
+        print(f"The shape of cellar automata tensor: ({self.height}, {self.width}, {self.channels});")
+        print(f"The indexes of rgb_axis: {self.rgb_axis}; The index of cells live status axis: {self.live_axis};")
+        print(f"===================================================================================================")
+
     # todo: upgrade this method
     def cell_state_initialization(self, coordinates: Optional[Tuple[int, int]] = None) -> None:
         if coordinates is None:

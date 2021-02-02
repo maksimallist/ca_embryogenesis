@@ -1,8 +1,10 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
+import numpy as np
+import tensorflow as tf
 import tqdm
-from tensorflow.keras.models import load_model
+from PIL import Image
 
 from core.image_utils import to_rgb
 from core.petri_dish import PetriDish
@@ -17,93 +19,82 @@ class MorphCA:
     the entire system for a specified number of steps. One step in the simulation is the one-time application of the
     update rule to the cell set, and the replacement of the old set of cell states with a new one.
     """
+
     def __init__(self,
-                 rule_model_path: Union[str, Path],
-                 write_video: bool = False,
-                 video_name: Optional[str] = None,
-                 save_video_path: Optional[Union[str, Path]] = None,
-                 print_summary: bool = True):
+                 petri_dish: PetriDish,
+                 update_model: tf.keras.Model,
+                 print_summary: bool = True,
+                 compatibility_test: bool = True):
         """
         Loading the tensorflow checkpoints with neural network that determine cellar automaton update rule. And create
         instance if class PetriDish that determine functional of cells set and their states.
-
-        Args:
-            rule_model_path: path to tensorflow checkpoint
-            write_video: boolean trigger that determine write the video with cellar automaton growth or not
-            video_name: name of the video file
-            save_video_path: save path for video file, if value is None, file will be saved in local folder
-            print_summary: determine print Keras network summary or not
         """
-        self.rule = load_model(rule_model_path)
+        self.petri_dish = petri_dish
+        self.update_model = update_model
         if print_summary:
-            self.rule.summary()
-        # TODO: исправить недорозумения со слоями inputs
-        # _, height, width, channel_n = self.rule.input.shape
-        height, width, channel_n = 72, 72, 16
+            self.print_summary()
+        if compatibility_test:
+            self.compatibility_test()
 
-        self.petri_dish = PetriDish(height=height, width=width, channel_n=channel_n)
-        self.seed = self.petri_dish.make_seed(return_seed=True)[None, ...]
+    def print_summary(self) -> None:
+        self.petri_dish.summary()
+        print()
+        self.update_model.summary()
 
-        self.write_video = write_video
-        if write_video:
-            if isinstance(save_video_path, str):
-                save_video_path = Path(save_video_path)
+    def compatibility_test(self) -> None:
+        try:
+            zeros = np.zeros_like(self.petri_dish.cells_tensor)
+            _ = self.update_model(zeros)
+            print(f"Compatibility test pass.")
+        finally:
+            raise ValueError("The shapes of the Petri dish and the updated model do not match.")
 
-            if video_name:
-                video_name = video_name.split('.')
+    def step(self) -> None:
+        """ Once applies the update rule to a set of cells states. """
+        ca_tensor = self.petri_dish.cells_tensor
+        self.petri_dish.cells_tensor = self.update_model(ca_tensor)
 
-                if len(video_name) == 1:
-                    video_name = video_name[0] + '.mp4'
-                else:
-                    if video_name[-1] != 'mp4':
-                        video_name = video_name[0] + '.mp4'
-
-                save_video_path = save_video_path.joinpath(video_name)
-            else:
-                save_video_path = save_video_path.joinpath('mca_grow.mp4')
-
-            self.video_writer = VideoWriter(str(save_video_path))
-
-    def step(self, state):
-        """
-        Once applies the update rule to a set of cells states.
-
-        Args:
-            state: numpy tensor with shape [batch_size, height, width, channel_n] containing states of cells
-
-        Returns:
-            New sells states
-        """
-        return self.rule(state)
-
-    def run_growth(self, steps: int, return_state: bool = False):
+    def run_growth_simulation(self,
+                              steps: int,
+                              return_final_state: bool = False,
+                              write_video: bool = True,
+                              save_video_path: Optional[Path] = None,
+                              video_name: Optional[str] = None):
         """
         Run simulations of growth of cellular automata.
 
         Args:
             steps: number of simulation steps
-            return_state: trigger that determine return final cell states or not
+            return_final_state: trigger that determine return final cell states or not
+            write_video:
+            save_video_path:
+            video_name:
 
         Returns:
-            None or set of cell states
+            None or cells state
         """
-        if self.write_video:
-            with self.video_writer as video:
-                video.add(zoom(tile2d(to_rgb(self.seed), 5), 2))
-                state = self.seed
-                # grow
+        if write_video:
+            if video_name is None:
+                save_video_path = save_video_path.joinpath('mca_grow.mp4')
+            else:
+                video_name += '.mp4'
+                save_video_path = save_video_path.joinpath(video_name)
+
+            video_writer = VideoWriter(str(save_video_path))
+
+            # run grow
+            with video_writer as video:
+                video.add(zoom(tile2d(to_rgb(self.petri_dish.cells_tensor), 5), 2))
                 for _ in tqdm.trange(steps):
-                    state = self.rule(state)
-                    video.add(zoom(tile2d(to_rgb(state), 5), 2))
+                    self.step()
+                    video.add(zoom(tile2d(to_rgb(self.petri_dish.cells_tensor), 5), 2))
         else:
-            state = self.seed
-            # grow
             for _ in tqdm.trange(steps):
-                state = self.rule(state)
+                self.step()
 
-        if return_state:
-            return state
+        if return_final_state:
+            return self.petri_dish.cells_tensor
 
-    def save_state(self):
-        # todo: добавить функцию сохранения состояния клеточного автомата как картинки, или как тензора
-        pass
+    def save_state(self, save_path: Path, image_name: str):
+        rgb_image = Image.fromarray(zoom(tile2d(to_rgb(self.petri_dish.cells_tensor), 5), 2))
+        rgb_image.save(save_path.joinpath(image_name + ".jpeg"))
