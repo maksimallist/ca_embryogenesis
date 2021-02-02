@@ -121,20 +121,26 @@ class LivingMask(Layer):
         return pool_result > self.life_threshold  # [Batch, Height, Width, 1]; заполнена нулями и единицами;
 
 
-class UpdateRule(tf.keras.Model):
+class SimpleUpdateModel(tf.keras.Model):
     def get_config(self):
         pass
 
     def __init__(self,
                  name: str,
-                 channel_n: int,
-                 life_threshold: float,
-                 conv_1_filters: int = 128,
-                 conv_kernel_size: int = 1,
+                 channels: int,
+                 life_threshold: float = 0.1,
+                 live_axis: int = 3,
+                 perception_kernel_size: int = 3,
+                 perception_kernel_type: str = 'sobel',
+                 perception_custom_kernel: Optional[np.array] = None,
+                 perception_kernel_norm_value: int = 8,
+                 observation_angle: float = 0.0,
+                 last_conv_filters: int = 128,
+                 last_conv_kernel_size: int = 1,
                  stochastic_update: bool = True,
                  fire_rate: Optional[float] = 0.5,
                  **kwargs):
-        super(UpdateRule, self).__init__(name=name, **kwargs)
+        super(SimpleUpdateModel, self).__init__(name=name, **kwargs)
         # define the mode of cellar automata grow
         self.stochastic_update = stochastic_update
         if stochastic_update and fire_rate:
@@ -144,19 +150,25 @@ class UpdateRule(tf.keras.Model):
                              "the 'fire_rate' argument must be not None, but it is.")
 
         # define the network layers
-        self.get_living_mask = LivingMask(life_threshold=life_threshold)
-        self.observation = StateObservation(channel_n=channel_n)
-        self.conv_1 = Conv2D(filters=conv_1_filters,
-                             kernel_size=conv_kernel_size,
+        self.get_living_mask = LivingMask(life_threshold=life_threshold,
+                                          live_axis=live_axis,
+                                          kernel_size=perception_kernel_size)
+        self.observation = StateObservation(channel_n=channels,
+                                            kernel_type=perception_kernel_type,
+                                            custom_kernel=perception_custom_kernel,
+                                            kernel_norm_value=perception_kernel_norm_value,
+                                            observation_angle=observation_angle)
+        self.conv_1 = Conv2D(filters=last_conv_filters,
+                             kernel_size=last_conv_kernel_size,
                              activation=tf.nn.relu)
-        self.conv_2 = Conv2D(filters=channel_n,
-                             kernel_size=conv_kernel_size,
+        self.conv_2 = Conv2D(filters=channels,
+                             kernel_size=last_conv_kernel_size,
                              activation=None,
                              kernel_initializer=tf.zeros_initializer())
 
     def call(self, inputs, **kwargs):
         # gets changing cell states
-        pre_life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
+        life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
         state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
         conv_out = self.conv_1(state_observation)
         ca_delta = self.conv_2(conv_out)
@@ -171,8 +183,8 @@ class UpdateRule(tf.keras.Model):
             new_states = inputs + ca_delta
 
         # determine which cells became alive and which did not
-        post_life_mask = self.get_living_mask(new_states)
-        life_mask = pre_life_mask & post_life_mask
-        new_states = new_states * tf.cast(life_mask, tf.float32)
+        new_life_mask = self.get_living_mask(new_states)
+        new_life_mask = life_mask & new_life_mask
+        new_states = new_states * tf.cast(new_life_mask, tf.float32)
 
         return new_states
