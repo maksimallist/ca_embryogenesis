@@ -141,9 +141,9 @@ class PoolTFKerasTrainer:
         self.data_generator = data_generator
         self.watcher = watcher
         self.model = model
+
         self.loss = self.define_loss(loss)
         self.optimizer = optimizer
-
         self.damage_n = damage_n
 
     @tf.function
