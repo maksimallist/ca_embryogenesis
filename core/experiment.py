@@ -85,11 +85,11 @@ class SimpleTFKerasTrainer:
                  watcher):
         self.data_generator = data_generator
         self.watcher = watcher
-        self.model = model
-        self.loss = self.define_loss(loss)
+        self.model = model  # compiled keras model
 
+        self.loss = self.define_loss(loss)
         self.optimizer = optimizer
-        # compilation keras model in other scope
+        # compilation keras model can be in other scope
         # self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
     @tf.function
