@@ -173,7 +173,7 @@ class PoolTFKerasTrainer:
     def train_step(self, grad_norm_value: float, grow_steps: Tuple[int, int]):
         batch_states, targets = self.data_generator.sample()  # batch_states: Tuple[np.array, list indexes]
 
-        # TODO: stabilize training process on start
+        # TODO: stabilize training process on start; закинуть эту штуку в специальный метод in data_generator;
         loss_rank = self.loss(batch_states[0], targets).numpy().argsort()[::-1]
         batch_x = batch_states[0][loss_rank]
         batch_x[:1] = self.data_generator.sample_seed()
