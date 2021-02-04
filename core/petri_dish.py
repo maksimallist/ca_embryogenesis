@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 
 import numpy as np
+import tensorflow as tf
 
 
 class PetriDish:
@@ -12,6 +13,7 @@ class PetriDish:
     принимает только значения 0/1. Оставшиеся компоненты не имеют явной интерпретации, их количество может быть
     произвольным.
     """
+
     def __init__(self,
                  height: int,
                  width: int,
@@ -46,17 +48,57 @@ class PetriDish:
             self.cells_tensor[x, y, self.live_axis:] = 1.0
 
 
-class SetOfCellularAutomata:
-    def __init__(self, ca_tensor: np.array, set_size: int = 1024):
+class CADataGenerator:
+    def __init__(self,
+                 ca_tensor: np.array,
+                 target: np.array,
+                 set_size: int = 1024,
+                 damage_n: Optional[int] = 3,
+                 reseed_batch: bool = True):
+        self.target = target
+        self.seed = ca_tensor
+
         self.set_size = set_size
-        # shape of ca_set [pool_size, height, width, channel_n]
-        self.ca_set = np.repeat(ca_tensor[None, ...], repeats=set_size, axis=0)
+        self.damage_n = damage_n
+        self.reseed_batch = reseed_batch
+        self.target_shape = self.target.shape[:2]
+
+        self.ca_set = np.repeat(ca_tensor[None, ...], repeats=set_size, axis=0)  # [pool_size, height, width, channel_n]
+
+    @tf.function
+    def make_circle_damage_masks(self, n: int):
+        # todo: can be write on numpy ops
+        x = tf.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
+        y = tf.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
+
+        center = tf.random.uniform([2, n, 1, 1], -0.5, 0.5)
+        r = tf.random.uniform([n, 1, 1], 0.1, 0.4)
+
+        x, y = (x - center[0]) / r, (y - center[1]) / r
+        mask = tf.cast(x * x + y * y < 1.0, tf.float32)
+
+        return mask
+
+    @tf.function
+    def metric(self, batch_x: np.array, batch_y: np.array):
+        # todo: can be write on numpy ops
+        return tf.reduce_mean(tf.square(batch_x[..., :4] - batch_y), [-2, -3, -1])
 
     def sample(self, batch_size: int = 32) -> Tuple[np.array, np.array]:
         batch_idx = np.random.choice(self.set_size, size=batch_size, replace=False)
         batch = self.ca_set[batch_idx]
 
-        return batch, batch_idx
+        # stabilize training process on start; prevent the equivalent of “catastrophic forgetting”;
+        if self.reseed_batch:
+            loss_rank = self.metric(batch, self.target).numpy().argsort()[::-1]
+            batch, batch_idx = batch[loss_rank], batch_idx[loss_rank]
+            batch[:1] = self.seed
+
+        if self.damage_n:
+            damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
+            batch[-self.damage_n:] *= damage
+
+        return (batch, batch_idx), self.target
 
     def commit(self, batch_cells: np.array, cells_idx: np.array) -> None:
         self.ca_set[cells_idx] = batch_cells

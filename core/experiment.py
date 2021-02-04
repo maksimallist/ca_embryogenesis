@@ -9,6 +9,12 @@ from tensorflow.keras import Model
 from core.image_utils import visualize_batch, generate_pool_figures, to_rgb
 
 
+@tf.function  # TODO: вынести перевод в rgba формат во вне тела функции
+def l2_loss(batch_x: np.array, batch_y: np.array):
+    batch_cells = batch_x[..., :4]  # to rgba
+    return tf.reduce_mean(tf.square(batch_cells - batch_y), [-2, -3, -1])
+
+
 class ExperimentWatcher:
     def __init__(self,
                  root: Path,
@@ -76,131 +82,42 @@ class ExperimentWatcher:
         print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
 
 
-class SimpleTFKerasTrainer:
+class TFKerasTrainer:
     def __init__(self,
                  data_generator,
                  model: Model,
                  optimizer,
-                 loss: Optional[Callable],
-                 watcher):
+                 watcher,
+                 loss_function: Optional[Callable]):
         self.data_generator = data_generator
         self.watcher = watcher
         self.model = model  # compiled keras model
 
-        self.loss = self.define_loss(loss)
         self.optimizer = optimizer
+        self.loss_function = loss_function
         # compilation keras model can be in other scope
         # self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
-    @tf.function
-    def ca_loss_function(self, batch_x: np.array, batch_y):
-        batch_cells = batch_x[..., :4]  # to rgba
-        return tf.reduce_mean(tf.square(batch_cells - batch_y), [-2, -3, -1])
-
-    def define_loss(self, loss: Optional[Callable]):
-        if loss:
-            return loss
-        else:
-            return self.ca_loss_function
-
     def train_step(self, grad_norm_value: float, grow_steps: Tuple[int, int]):
-        batch_x, batch_y = self.data_generator.sample()
-
         iter_n = tf.random.uniform([], grow_steps[0], grow_steps[1], tf.int32)
-
-        with tf.GradientTape() as g:
-            for _ in tf.range(iter_n):
-                batch_x = self.model(batch_x)
-
-            loss = tf.reduce_mean(self.loss(batch_x, batch_y))
-
-        grads = g.gradient(loss, self.model.weights)
-        grads = [g / (tf.norm(g) + grad_norm_value) for g in grads]
-        self.optimizer.apply_gradients(zip(grads, self.model.weights))
-
-        self.data_generator.commit(batch_x)
-
-        return loss, batch_x
-
-    def train(self, train_steps: int, grad_norm_value: float, grow_steps: Tuple[int, int]):
-        for step in range(train_steps + 1):
-            loss, next_state_batch = self.train_step(grad_norm_value, grow_steps)
-            # TODO: надо подумать над форматом API, в рамках которого мы могли бы свободно оперировать дополнительными
-            #  объектами, требуемыми нам в рамках обучения
-            self.watcher.log(step, loss, self.model, next_state_batch)
-
-
-class PoolTFKerasTrainer:
-    def __init__(self,
-                 data_generator,
-                 model: Model,
-                 optimizer,
-                 loss: Optional[Callable],
-                 watcher,
-                 damage_n: Optional[int] = 3):
-        self.data_generator = data_generator
-        self.watcher = watcher
-        self.model = model
-
-        self.loss = self.define_loss(loss)
-        self.optimizer = optimizer
-        self.damage_n = damage_n
-
-    @tf.function
-    def ca_loss_function(self, batch_x: np.array, batch_y: np.array):
-        batch_cells = batch_x[..., :4]  # to rgba
-        return tf.reduce_mean(tf.square(batch_cells - batch_y), [-2, -3, -1])
-
-    def define_loss(self, loss: Optional[Callable]):
-        if loss:
-            return loss
-        else:
-            return self.ca_loss_function
-
-    @tf.function
-    def make_circle_damage_masks(self, n: int, target_shape: Tuple[int, int]):
-        x = tf.linspace(-1.0, 1.0, target_shape[1])[None, None, :]
-        y = tf.linspace(-1.0, 1.0, target_shape[0])[None, :, None]
-
-        center = tf.random.uniform([2, n, 1, 1], -0.5, 0.5)
-        r = tf.random.uniform([n, 1, 1], 0.1, 0.4)
-
-        x, y = (x - center[0]) / r, (y - center[1]) / r
-        mask = tf.cast(x * x + y * y < 1.0, tf.float32)
-
-        return mask
-
-    def train_step(self, grad_norm_value: float, grow_steps: Tuple[int, int]):
         batch_states, targets = self.data_generator.sample()  # batch_states: Tuple[np.array, list indexes]
 
-        # TODO: stabilize training process on start; закинуть эту штуку в специальный метод in data_generator;
-        loss_rank = self.loss(batch_states[0], targets).numpy().argsort()[::-1]
-        batch_x = batch_states[0][loss_rank]
-        batch_x[:1] = self.data_generator.sample_seed()
-
-        if self.damage_n:
-            damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
-            batch_x[-self.damage_n:] *= damage
-
-        iter_n = tf.random.uniform([], grow_steps[0], grow_steps[1], tf.int32)
-
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
                 batch_x = self.model(batch_x)
 
-            loss = tf.reduce_mean(self.loss(batch_x, targets))
+            loss = tf.reduce_mean(self.loss_function(batch_x, targets))
 
         grads = g.gradient(loss, self.model.weights)
         grads = [g / (tf.norm(g) + grad_norm_value) for g in grads]
         self.optimizer.apply_gradients(zip(grads, self.model.weights))
 
+        # insert new ca tensors in pool
         self.data_generator.commit(batch_cells=batch_x, cells_idx=batch_states[1])
 
         return loss, batch_x
 
-    def train(self, train_steps: int, grad_norm_value: float, grow_steps: Tuple[int, int]):
-        for step in range(train_steps + 1):
+    def train(self, train_steps: int, grad_norm_value: float, grow_steps: Tuple[int, int]) -> None:
+        for step in range(1, train_steps, 1):
             loss, next_state_batch = self.train_step(grad_norm_value, grow_steps)
-            # TODO: надо подумать над форматом API, в рамках которого мы могли бы свободно оперировать дополнительными
-            #  объектами, требуемыми нам в рамках обучения
             self.watcher.log(step, loss, self.model, next_state_batch)
