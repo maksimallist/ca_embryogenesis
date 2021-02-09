@@ -1,27 +1,76 @@
 import io
 from pathlib import Path
-from typing import Optional
-from typing import Union
+from typing import Optional, Union
 
 import PIL.Image
 import PIL.ImageDraw
 import numpy as np
 import requests
-from IPython.display import Image, display
-
-from core.video_writer import tile2d
+from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 
-def to_alpha(x: np.array):
+# TODO: убрать хардкодинг
+def to_alpha(x: np.array) -> np.array:
     return np.clip(x[..., 3:4], a_min=0.0, a_max=1.0)
 
 
-def to_rgb(x):
-    rgb, a = x[..., :3], to_alpha(x)
-    return 1.0 - a + rgb
+# TODO: убрать хардкодинг
+def to_rgb(x: np.array) -> np.array:
+    rgb = x[..., :3]
+    life_mask = np.clip(x[..., 3:4], a_min=0.0, a_max=1.0)
+    return 1.0 - life_mask + rgb
 
 
-# ------------------------------------------------- Image functions ----------------------------------------------------
+def zoom(img: np.array, scale: int = 4) -> np.array:
+    img = np.repeat(img, scale, 0)
+    img = np.repeat(img, scale, 1)
+    return img
+
+
+def tile2d(a: np.array, w: Optional[int] = None) -> np.array:
+    a = np.asarray(a)
+    if w is None:
+        w = int(np.ceil(np.sqrt(len(a))))
+    th, tw = a.shape[1:3]
+    pad = (w - len(a)) % w
+    a = np.pad(a, [(0, pad)] + [(0, 0)] * (a.ndim - 1), 'constant')
+    h = len(a) // w
+    a = a.reshape([h, w] + list(a.shape[1:]))
+    a = np.rollaxis(a, 2, 1).reshape([th * h, tw * w] + list(a.shape[4:]))
+    return a
+
+
+class VideoWriter:
+    def __init__(self, filename, fps=30.0, **kw):
+        self.writer = None
+        self.params = dict(filename=filename, fps=fps, **kw)
+
+    def add(self, img):
+        img = np.asarray(img)
+
+        if self.writer is None:
+            h, w = img.shape[:2]
+            self.writer = FFMPEG_VideoWriter(size=(w, h), **self.params)
+
+        if img.dtype in [np.float32, np.float64]:
+            img = np.uint8(img.clip(0, 1) * 255)
+
+        if len(img.shape) == 2:
+            img = np.repeat(img[..., None], 3, -1)
+
+        self.writer.write_frame(img)
+
+    def close(self):
+        if self.writer:
+            self.writer.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *kw):
+        self.close()
+
+
 def get_image(img, max_size: int):
     img.thumbnail((max_size, max_size), PIL.Image.ANTIALIAS)
     img = np.float32(img) / 255.0
@@ -43,72 +92,3 @@ def load_emoji(emoji, max_size):
     img = PIL.Image.open(io.BytesIO(req.content))
 
     return get_image(img=img, max_size=max_size)
-
-
-def np2pil(a):
-    if a.dtype in [np.float32, np.float64]:
-        a = np.uint8(np.clip(a, 0, 1) * 255)
-    return PIL.Image.fromarray(a)
-
-
-def image_save(path: Union[str, io.BytesIO], image_array: np.array, image_format: Optional[str] = None):
-    image_array = np.asarray(image_array)
-
-    if not image_format:
-        image_format = path.rsplit('.', 1)[-1].lower()
-        if image_format == 'jpg':
-            image_format = 'jpeg'
-
-    path = open(path, 'wb')
-    np2pil(image_array).save(path, image_format, quality=95)
-
-
-# ------------------------------------------- Jupyter Notebook Image functions -----------------------------------------
-def image_encode(image_array: np.array, image_format: str = 'jpeg'):
-    image_array = np.asarray(image_array)
-    if len(image_array.shape) == 3 and image_array.shape[-1] == 4:
-        image_format = 'png'
-    f = io.BytesIO()
-    image_save(f, image_array, image_format)
-    return f.getvalue()
-
-
-def image_show(image_array: np.array, image_format='jpeg'):
-    # display(Image(data=image_encode(image_array, image_format)))
-    display_tuple = (Image(data=image_encode(image_array, image_format)),)
-    display(display_tuple)
-
-
-# ------------------------------------------------- Visualise CA Results -----------------------------------------------
-def generate_pool_figures(pool_states: np.array,
-                          train_step: int,
-                          save_path: str,
-                          return_pool: bool = False) -> Union[np.array, None]:
-    tiled_pool = tile2d(to_rgb(pool_states[:49]))
-    fade = np.linspace(1.0, 0.0, 72)
-    ones = np.ones(72)
-    tiled_pool[:, :72] += (-tiled_pool[:, :72] + ones[None, :, None]) * fade[None, :, None]
-    tiled_pool[:, -72:] += (-tiled_pool[:, -72:] + ones[None, :, None]) * fade[None, ::-1, None]
-    tiled_pool[:72, :] += (-tiled_pool[:72, :] + ones[:, None, None]) * fade[:, None, None]
-    tiled_pool[-72:, :] += (-tiled_pool[-72:, :] + ones[:, None, None]) * fade[::-1, None, None]
-
-    image_save(save_path + '/%04d_pool.jpg' % train_step, tiled_pool)
-
-    if return_pool:
-        return np.asarray(tiled_pool)
-
-
-def visualize_batch(pre_state: np.array,
-                    post_state: np.array,
-                    train_step: int,
-                    save_path: str,
-                    jupyter: bool = False) -> None:
-    vis0 = np.hstack(to_rgb(pre_state))  # .numpy()
-    vis1 = np.hstack(to_rgb(post_state))  # .numpy()
-    vis = np.vstack([vis0, vis1])
-    # save pictures
-    image_save(save_path + '/batches_%04d.jpg' % train_step, vis)
-    # visualize pictures in notebook or operation system
-    if jupyter:
-        print('batch (before/after):')
-        image_show(vis)

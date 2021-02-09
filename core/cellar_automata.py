@@ -6,9 +6,8 @@ import tensorflow as tf
 import tqdm
 from PIL import Image
 
-from core.image_utils import to_rgb
+from core.image_utils import VideoWriter, tile2d, zoom, to_rgb
 from core.petri_dish import PetriDish
-from core.video_writer import VideoWriter, tile2d, zoom
 
 
 class MorphCA:

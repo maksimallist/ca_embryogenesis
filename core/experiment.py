@@ -10,10 +10,9 @@ from tensorflow.keras import Model
 from core.image_utils import to_rgb
 
 
-@tf.function  # TODO: вынести перевод в rgba формат во вне тела функции
+@tf.function
 def l2_loss(batch_x: np.array, batch_y: np.array):
-    batch_cells = batch_x[..., :4]  # to rgba
-    return tf.reduce_mean(tf.square(batch_cells - batch_y), [-2, -3, -1])
+    return tf.reduce_mean(tf.square(batch_x - batch_y), [-2, -3, -1])
 
 
 class ExperimentWatcher:
@@ -123,7 +122,7 @@ class TFKerasTrainer:
             for _ in tf.range(iter_n):
                 batch_x = self.model(batch_x)
 
-            loss = tf.reduce_mean(self.loss_function(batch_x, targets))
+            loss = tf.reduce_mean(self.loss_function(batch_x[..., :4], targets))  # batch_x to rgba
 
         grads = g.gradient(loss, self.model.weights)
         grads = [g / (tf.norm(g) + grad_norm_value) for g in grads]
