@@ -9,15 +9,13 @@ import requests
 from moviepy.video.io.ffmpeg_writer import FFMPEG_VideoWriter
 
 
-# TODO: убрать хардкодинг
-def to_alpha(x: np.array) -> np.array:
-    return np.clip(x[..., 3:4], a_min=0.0, a_max=1.0)
+def to_alpha(x: np.array, life_state_axis: int = 3) -> np.array:
+    return np.clip(x[..., life_state_axis:life_state_axis + 1], a_min=0.0, a_max=1.0)
 
 
-# TODO: убрать хардкодинг
-def to_rgb(x: np.array) -> np.array:
-    rgb = x[..., :3]
-    life_mask = np.clip(x[..., 3:4], a_min=0.0, a_max=1.0)
+def to_rgb(x: np.array, life_state_axis: int = 3) -> np.array:
+    rgb = x[..., :life_state_axis]
+    life_mask = to_alpha(x, life_state_axis)
     return 1.0 - life_mask + rgb
 
 
