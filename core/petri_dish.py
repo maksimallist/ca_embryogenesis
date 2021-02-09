@@ -47,6 +47,9 @@ class PetriDish:
             assert y <= self.height
             self.cells_tensor[x, y, self.live_axis:] = 1.0
 
+    def rebase(self):
+        pass
+
 
 class CADataGenerator:
     def __init__(self,
