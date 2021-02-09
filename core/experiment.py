@@ -62,31 +62,30 @@ class ExperimentWatcher:
         model_path.mkdir()
         trainable_rule.save(filepath=str(model_path), overwrite=True, save_format="tf")
 
-    # TODO: upgrade
-    def save_ca_state_as_image(self, train_step: int, post_state: np.array, max_img_count: int = 5):
+    def save_ca_state_as_image(self,
+                               train_step: int,
+                               post_state: np.array,
+                               img_count: int = 10,
+                               max_img_count: int = 25,
+                               img_in_line: int = 5):
         self.last_pictures_folder = self.pictures_folder.joinpath("train_step_" + str(train_step))
         self.last_pictures_folder.mkdir()
-
         path = open(str(self.last_pictures_folder) + f"/batches_{train_step}.jpeg", 'wb')
 
-        image = np.hstack(to_rgb(post_state)[:max_img_count])
+        assert img_count <= max_img_count, ""
+        assert len(post_state) >= img_count, ""
+
+        images = []
+        n_rows = img_count // img_in_line
+        for i in range(1, n_rows, 1):
+            images.append(np.hstack(to_rgb(post_state)[img_in_line * i:img_in_line * (i + 1)]))
+        image = np.vstack(images)
+
         image = np.uint8(np.clip(image, 0, 1) * 255)
         image = Image.fromarray(image)
         image.save(path, 'jpeg', quality=95)
 
         tf.summary.image("Example of CA figures", to_rgb(post_state[0])[None, ...], step=train_step)
-
-    # TODO: fix
-    # def generate_pool_figures(pool_states: np.array, train_step: int, save_path: str) -> None:
-    #     tiled_pool = tile2d(to_rgb(pool_states[:49]))
-    #     fade = np.linspace(1.0, 0.0, 72)
-    #     ones = np.ones(72)
-    #     tiled_pool[:, :72] += (-tiled_pool[:, :72] + ones[None, :, None]) * fade[None, :, None]
-    #     tiled_pool[:, -72:] += (-tiled_pool[:, -72:] + ones[None, :, None]) * fade[None, ::-1, None]
-    #     tiled_pool[:72, :] += (-tiled_pool[:72, :] + ones[:, None, None]) * fade[:, None, None]
-    #     tiled_pool[-72:, :] += (-tiled_pool[-72:, :] + ones[:, None, None]) * fade[::-1, None, None]
-    #
-    #     image_save(save_path + f"/{train_step}_pool.jpg", tiled_pool)
 
     def log(self, step, loss, trainable_rule, next_state_batch):
         if step % 10 == 0:
@@ -97,11 +96,7 @@ class ExperimentWatcher:
 
         if step % 1000 == 0:
             self.save_model(trainable_rule, step)
-            self.save_ca_state_as_image(step, next_state_batch, max_img_count=5)
-            # pool_figures = generate_pool_figures(pool_states=pool_states,
-            #                                      train_step=step,
-            #                                      save_path=str(self.last_pictures_folder),
-            #                                      return_pool=True)
+            self.save_ca_state_as_image(step, next_state_batch)
 
 
 class TFKerasTrainer:
