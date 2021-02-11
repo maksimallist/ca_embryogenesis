@@ -54,7 +54,7 @@ if __name__ == '__main__':
                               fire_rate=config['cell_fire_rate'])  # 0.5
 
     boundaries_decay_values = [config['learning_rate'], config['learning_rate'] * config['lr_multiplier']]
-    lr_scheduler = PiecewiseConstantDecay(boundaries=config['boundaries'],
+    lr_scheduler = PiecewiseConstantDecay(boundaries=[config['boundaries']],
                                           values=boundaries_decay_values)
     model_optimizer = Adam(lr_scheduler)
     model.compile(optimizer=model_optimizer, loss=l2_loss)
