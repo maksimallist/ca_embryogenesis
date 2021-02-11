@@ -28,7 +28,7 @@ class PetriDish:
         self.live_axis = live_axis
         self.rgb_axis = rgb_axis
         self.cells_tensor = np.zeros([self.height, self.width, self.channels], np.float32)
-        self.cell_state_initialization()
+        self.summary()
 
     def summary(self):
         print(f"=================================== The cellar automata summary ===================================")
