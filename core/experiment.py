@@ -116,7 +116,7 @@ class TFKerasTrainer:
 
     def train_step(self, grad_norm_value: float, grow_steps: Tuple[int, int]):
         iter_n = tf.random.uniform([], grow_steps[0], grow_steps[1], tf.int32)
-        batch_states, targets = self.data_generator.sample()  # batch_states: Tuple[np.array, list indexes]
+        (batch_x, batch_ids), targets = self.data_generator.sample()  # batch_x: np.array; batch_ids: list indexes;
 
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
@@ -129,7 +129,7 @@ class TFKerasTrainer:
         self.optimizer.apply_gradients(zip(grads, self.model.weights))
 
         # insert new ca tensors in pool
-        self.data_generator.commit(batch_cells=batch_x, cells_idx=batch_states[1])
+        self.data_generator.commit(batch_cells=batch_x, cells_idx=batch_ids)
 
         return loss, batch_x
 

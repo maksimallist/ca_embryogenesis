@@ -29,19 +29,14 @@ class StateObservation(Layer):
 
         # create kernel for depthwise_conv2d layer
         if kernel_type == 'sobel':
-            kernel = self.create_sobel_kernel()
+            self.kernel = self.create_sobel_kernel()
         elif kernel_type == 'scharr':
-            kernel = self.create_scharr_kernel()
+            self.kernel = self.create_scharr_kernel()
         elif kernel_type == 'custom':
-            kernel = self.create_custom_kernel(dx_kernel=custom_kernel)
+            self.kernel = self.create_custom_kernel(dx_kernel=custom_kernel)
         else:
             raise ValueError(f"The 'kernel_type' argument must be ['sobel', 'scharr', 'custom'] or None, "
                              f"but {kernel_type} was found.")
-
-        # create perception layer
-        self.perception = tf.nn.depthwise_conv2d(filter=kernel,
-                                                 strides=[1, 1, 1, 1],
-                                                 padding='SAME')  # shape: [Batch, Height, Width, channel_n * 3]
 
     def create_sobel_kernel(self):
         # create Sobel operators for 'x' and 'y' axis
@@ -101,7 +96,11 @@ class StateObservation(Layer):
 
     def call(self, inputs, **kwargs):
         # perceive neighbors cells states
-        return self.perception(input=inputs)
+        perception = tf.nn.depthwise_conv2d(input=inputs,
+                                            filter=self.kernel,
+                                            strides=[1, 1, 1, 1],
+                                            padding='SAME')  # shape: [Batch, Height, Width, channel_n * 3]
+        return perception
 
 
 class LivingMask(Layer):
@@ -114,10 +113,13 @@ class LivingMask(Layer):
         super(LivingMask, self).__init__(name=name, **kwargs)
         self.life_threshold = life_threshold
         self.live_axis = live_axis
-        self.live_mask = tf.nn.max_pool2d(ksize=kernel_size, strides=[1, 1, 1, 1], padding='SAME')
+        self.kernel_size = kernel_size
 
     def call(self, inputs, **kwargs):
-        pool_result = self.live_mask(input=inputs[:, :, :, self.live_axis])  # alpha shape: [Batch, Height, Width, 1]
+        pool_result = tf.nn.max_pool2d(input=inputs[:, :, :, self.live_axis:self.live_axis + 1],
+                                       ksize=self.kernel_size,
+                                       strides=[1, 1, 1, 1],
+                                       padding='SAME')  # alpha shape: [Batch, Height, Width, 1]
         return pool_result > self.life_threshold  # [Batch, Height, Width, 1]; заполнена нулями и единицами;
 
 
