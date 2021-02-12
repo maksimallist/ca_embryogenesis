@@ -124,9 +124,6 @@ class LivingMask(Layer):
 
 
 class SimpleUpdateModel(tf.keras.Model):
-    def get_config(self):
-        pass
-
     def __init__(self,
                  name: str,
                  channels: int,

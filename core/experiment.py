@@ -94,9 +94,6 @@ class ExperimentWatcher:
         if step % 100 == 0:
             self.save_ca_state_as_image(step, next_state_batch)
 
-        if step == 100:
-            self.save_model(trainable_rule, step)
-
         if step % 1000 == 0:
             self.save_model(trainable_rule, step)
 
@@ -139,6 +136,6 @@ class TFKerasTrainer:
 
     def train(self, train_steps: int, batch_size: int, grad_norm_value: float, grow_steps: Tuple[int, int]) -> None:
         print("[ Start training ... ]")
-        for step in range(1, train_steps, 1):
+        for step in range(1, train_steps + 1, 1):
             loss, next_state_batch = self.train_step(batch_size, grad_norm_value, grow_steps)
             self.watcher.log(step, loss, self.model, next_state_batch)
