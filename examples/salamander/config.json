@@ -21,7 +21,7 @@
   "observation_angle": 0.0,
   "stochastic_update": true,
   "batch_size": 8,
-  "train_steps": 1000,
+  "train_steps": 8000,
   "learning_rate": 2e-3,
   "boundaries": 2000,
   "lr_multiplier": 0.1,

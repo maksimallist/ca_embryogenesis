@@ -14,7 +14,7 @@ if __name__ == '__main__':
     main_root = Path(__file__).parent.absolute()
 
     # load experiment config
-    experiment_config = str(main_root.joinpath('config.json'))
+    experiment_config = str(main_root.joinpath('exp_config.json'))
     with open(experiment_config, 'r') as conf:
         config = json.load(conf)
 
@@ -25,13 +25,13 @@ if __name__ == '__main__':
     target_padding_map = ((target_padding, target_padding), (target_padding, target_padding), (0, 0))
     padded_target = np.pad(target_img, target_padding_map, 'constant', constant_values=0.0)
     image_height, image_width = padded_target.shape[:2]
+    print(f"image_height: {image_height}; image_width: {image_width};")
 
-    ca = PetriDish(height=image_height,
-                   width=image_width,
+    ca = PetriDish(height=image_height,  # 56
+                   width=image_width,  # 56
                    cell_states=config['channel_n'],  # 16
                    rgb_axis=config['image_axis'],  # (0, 1, 2),
                    live_axis=config['live_state_axis'])  # 3
-
     ca.cell_state_initialization()
 
     data_generator = CADataGenerator(ca_tensor=ca.cells_tensor,
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     lr_scheduler = PiecewiseConstantDecay(boundaries=[config['boundaries']],
                                           values=boundaries_decay_values)
     model_optimizer = Adam(lr_scheduler)
-    model.compile(optimizer=model_optimizer, loss=l2_loss)
+    model.compile(optimizer=model_optimizer)  # , loss=l2_loss
 
     watcher = ExperimentWatcher(root=main_root,
                                 exp_name=config['exp_name'],
@@ -69,6 +69,7 @@ if __name__ == '__main__':
                              watcher=watcher,
                              loss_function=l2_loss)
 
-    trainer.train(train_steps=config['train_steps'],
+    trainer.train(train_steps=config['train_steps'],  # 8000
+                  batch_size=config['batch_size'],  # 8
                   grad_norm_value=config['grad_norm_value'],
                   grow_steps=tuple(config['train_ca_step_range']))
