@@ -29,6 +29,8 @@ class MorphCA:
         instance if class PetriDish that determine functional of cells set and their states.
         """
         self.petri_dish = petri_dish
+        self.petri_dish.cells_tensor = self.petri_dish.cells_tensor[None, ...]
+
         self.update_model = update_model
         if print_summary:
             self.print_summary()
@@ -45,8 +47,8 @@ class MorphCA:
             zeros = np.zeros_like(self.petri_dish.cells_tensor)
             _ = self.update_model(zeros)
             print(f"Compatibility test pass.")
-        finally:
-            raise ValueError("The shapes of the Petri dish and the updated model do not match.")
+        except Exception as e:
+            raise ValueError(f"The shapes of the Petri dish and the updated model do not match: {e}")
 
     def step(self) -> None:
         """ Once applies the update rule to a set of cells states. """
