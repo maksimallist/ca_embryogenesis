@@ -64,9 +64,9 @@ class ExperimentWatcher:
     def save_ca_state_as_image(self,
                                train_step: int,
                                post_state: np.array,
-                               img_count: int = 10,
+                               img_count: int = 8,
                                max_img_count: int = 25,
-                               img_in_line: int = 5):
+                               img_in_line: int = 4):
         self.last_pictures_folder = self.pictures_folder.joinpath("train_step_" + str(train_step))
         self.last_pictures_folder.mkdir()
         path = open(str(self.last_pictures_folder) + f"/batches_{train_step}.jpeg", 'wb')
@@ -89,13 +89,16 @@ class ExperimentWatcher:
     def log(self, step, loss, trainable_rule, next_state_batch):
         if step % 10 == 0:
             tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
+            print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
 
         if step % 100 == 0:
-            print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
+            self.save_ca_state_as_image(step, next_state_batch)
+
+        if step == 100:
+            self.save_model(trainable_rule, step)
 
         if step % 1000 == 0:
             self.save_model(trainable_rule, step)
-            self.save_ca_state_as_image(step, next_state_batch)
 
 
 class TFKerasTrainer:
@@ -114,9 +117,10 @@ class TFKerasTrainer:
         # compilation keras model can be in other scope
         # self.model.compile(optimizer=self.optimizer, loss=self.loss)
 
-    def train_step(self, grad_norm_value: float, grow_steps: Tuple[int, int]):
+    def train_step(self, batch_size: int, grad_norm_value: float, grow_steps: Tuple[int, int]):
         iter_n = tf.random.uniform([], grow_steps[0], grow_steps[1], tf.int32)
-        (batch_x, batch_ids), targets = self.data_generator.sample()  # batch_x: np.array; batch_ids: list indexes;
+        (batch_x, batch_ids), targets = self.data_generator.sample(batch_size)
+        # batch_x: np.array; batch_ids: list indexes;
 
         with tf.GradientTape() as g:
             for _ in tf.range(iter_n):
@@ -133,7 +137,8 @@ class TFKerasTrainer:
 
         return loss, batch_x
 
-    def train(self, train_steps: int, grad_norm_value: float, grow_steps: Tuple[int, int]) -> None:
+    def train(self, train_steps: int, batch_size: int, grad_norm_value: float, grow_steps: Tuple[int, int]) -> None:
+        print("[ Start training ... ]")
         for step in range(1, train_steps, 1):
-            loss, next_state_batch = self.train_step(grad_norm_value, grow_steps)
+            loss, next_state_batch = self.train_step(batch_size, grad_norm_value, grow_steps)
             self.watcher.log(step, loss, self.model, next_state_batch)
