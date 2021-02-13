@@ -1,14 +1,14 @@
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Dict, Tuple, Optional
-import json
 
 import numpy as np
 import tensorflow as tf
 from PIL import Image
 from tensorflow.keras import Model
 
-from core.image_utils import to_rgb
+from core.image_utils import VideoWriter, tile2d, zoom, to_rgb
 
 
 class ExperimentWatcher:
@@ -21,7 +21,8 @@ class ExperimentWatcher:
     last_pictures_folder = None
     tensorboard_logs = None
 
-    def __init__(self, exp_name: str, root: Path):
+    def __init__(self, exp_name: str, root: Path, video_steps: int = 200):
+        self.steps = video_steps
         self.exp_root = root.joinpath(exp_name + '_' + self.date)
         self.log(exp_name=exp_name, exp_root=str(root))
         self._experiments_preparation()
@@ -113,7 +114,25 @@ class ExperimentWatcher:
 
         tf.summary.image("Example of CA figures", to_rgb(post_state[0])[None, ...], step=train_step)
 
-    def train_log(self, step, loss, trainable_rule, next_state_batch):
+    def _save_ca_video(self, train_step: int, trainable_rule: Model, seed: np.array):
+        save_video_path = self.video_folder.joinpath(f"train_step_{train_step}.mp4")
+        video_writer = VideoWriter(str(save_video_path))
+
+        with video_writer as video:
+            ca_tensor = seed[None, ...]
+            video.add(zoom(tile2d(to_rgb(seed), 5), 2))
+            for _ in range(self.steps):
+                ca_tensor = trainable_rule(ca_tensor)
+                video.add(zoom(tile2d(to_rgb(ca_tensor), 5), 2))
+
+    def train_log(self, step, loss, trainable_rule, next_state_batch, seed: np.array):
+        if step == 1:
+            tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
+            print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
+            self._save_ca_state_as_image(step, next_state_batch)
+            self._save_ca_video(step, trainable_rule, seed)
+            self._save_model(trainable_rule, step)
+
         if step % 10 == 0:
             tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
             print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
@@ -123,6 +142,7 @@ class ExperimentWatcher:
 
         if step % 1000 == 0:
             self._save_model(trainable_rule, step)
+            self._save_ca_video(step, trainable_rule, seed)
 
 
 class TFKerasTrainer:
@@ -164,4 +184,4 @@ class TFKerasTrainer:
         self.watcher.save_config()
         for step in range(1, train_steps + 1, 1):
             loss, next_state_batch = self.train_step(batch_size, grad_norm_value, grow_steps)
-            self.watcher.train_log(step, loss, self.model, next_state_batch)
+            self.watcher.train_log(step, loss, self.model, next_state_batch, self.data_generator.seed)

@@ -9,20 +9,20 @@ from core.petri_dish import PetriDish
 main_root = Path(__file__).parent.absolute()
 
 # load experiment config
-experiment_config = str(main_root.joinpath('old_config.json'))
+experiment_config = str(main_root.joinpath('... exp name ...', 'exp_config.json'))
 with open(experiment_config, 'r') as conf:
     config = json.load(conf)
 
 # initialize Petri dish
-petri_dish = PetriDish(height=56,
-                       width=56,
-                       cell_states=config['channel_n'],  # 16
-                       rgb_axis=config['image_axis'],  # (0, 1, 2),
-                       live_axis=config['live_state_axis'])  # 3
+petri_dish = PetriDish(height=config["cellar_automata"]['image_height'],
+                       width=config["cellar_automata"]['image_width'],
+                       cell_states=config["cellar_automata"]['channel_n'],
+                       rgb_axis=config["cellar_automata"]['image_axis'],
+                       live_axis=config["cellar_automata"]['live_state_axis'])
 petri_dish.cell_state_initialization()
 
 # load trained neural network that is implement update rule for cells
-checkpoints = main_root.joinpath('salamander_example_12.02.2021-11.35', 'checkpoints', 'train_step_7000')
+checkpoints = main_root.joinpath('... exp name ...', 'checkpoints', 'train_step_ ...')
 update_model = load_model(str(checkpoints), compile=False)
 update_model.summary()
 
@@ -36,4 +36,4 @@ cellar_automata.run_growth_simulation(steps=450,
                                       return_final_state=False,
                                       write_video=True,
                                       save_video_path=main_root,
-                                      video_name="salamander_grow")
+                                      video_name="salamander_growth")
