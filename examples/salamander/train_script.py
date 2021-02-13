@@ -14,7 +14,7 @@ if __name__ == '__main__':
     main_root = Path(__file__).parent.absolute()
 
     # load experiment config
-    experiment_config = str(main_root.joinpath('config.json'))
+    experiment_config = str(main_root.joinpath('old_config.json'))
     with open(experiment_config, 'r') as conf:
         config = json.load(conf)
 
