@@ -10,11 +10,6 @@ from tensorflow.keras import Model
 from core.image_utils import to_rgb
 
 
-@tf.function
-def l2_loss(batch_x: np.array, batch_y: np.array):
-    return tf.reduce_mean(tf.square(batch_x - batch_y), [-2, -3, -1])
-
-
 class ExperimentWatcher:
     def __init__(self,
                  root: Path,
