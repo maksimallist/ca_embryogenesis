@@ -67,10 +67,7 @@ class ExperimentWatcher:
                                img_count: int = 8,
                                max_img_count: int = 25,
                                img_in_line: int = 4):
-        self.last_pictures_folder = self.pictures_folder.joinpath("train_step_" + str(train_step))
-        self.last_pictures_folder.mkdir()
-        path = open(str(self.last_pictures_folder) + f"/batches_{train_step}.jpeg", 'wb')
-
+        path = open(str(self.pictures_folder) + f"/train_step_{train_step}.jpeg", 'wb')
         assert img_count <= max_img_count, ""
         assert len(post_state) >= img_count, ""
 
