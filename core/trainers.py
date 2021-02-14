@@ -4,7 +4,7 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.optimizers import Optimizer
 
-from core.petri_dish import CADataGenerator
+from core.cell_cultures import CADataGenerator
 from core.watchers import ExpWatcher
 
 

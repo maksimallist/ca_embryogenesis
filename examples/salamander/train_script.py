@@ -6,8 +6,8 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
 from core.image_utils import load_emoji
-from core.petri_dish import CADataGenerator, PetriDish
-from core.rule_model import SimpleUpdateModel
+from core.cell_cultures import CADataGenerator, PetriDish
+from core.models import SimpleUpdateModel
 from core.trainers import TFCATrainer
 from core.watchers import ExpWatcher
 

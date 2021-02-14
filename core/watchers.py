@@ -10,7 +10,7 @@ from tensorflow.keras import Model
 
 from core.cellar_automata import MorphCA
 from core.image_utils import to_rgb
-from core.petri_dish import PetriDish
+from core.cell_cultures import PetriDish
 
 
 def is_json_serializable(x):

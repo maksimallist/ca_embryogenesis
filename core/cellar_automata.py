@@ -7,7 +7,7 @@ import tqdm
 from PIL import Image
 
 from core.image_utils import VideoWriter, tile2d, zoom, to_rgb
-from core.petri_dish import PetriDish
+from core.cell_cultures import PetriDish
 
 
 class MorphCA:
