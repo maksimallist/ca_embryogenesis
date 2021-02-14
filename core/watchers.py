@@ -8,7 +8,9 @@ import tensorflow as tf
 from PIL import Image
 from tensorflow.keras import Model
 
-from core.image_utils import VideoWriter, tile2d, zoom, to_rgb
+from core.cellar_automata import MorphCA
+from core.image_utils import to_rgb
+from core.petri_dish import PetriDish
 
 
 def is_json_serializable(x):
@@ -68,14 +70,11 @@ class ExpWatcher(Watcher):
     _video_folder = None
     _tensorboard_logs = None
 
-    def __init__(self, exp_name: str, root: Path, video_steps: int = 200, *args, **kwargs):
-        super(Watcher).__init__(exp_name=exp_name, root=str(root), *args, **kwargs)
+    def __init__(self, exp_name: str, root: Path, *args, **kwargs):
+        super(ExpWatcher, self).__init__(exp_name=exp_name, root=str(root), *args, **kwargs)
         date = datetime.now().strftime("%d.%m.%Y-%H.%M")
-        self.log(exp_date=date)
+        self.log(exp_date=date)  # exp_name=exp_name, root=str(root)
         self.exp_root = root.joinpath(exp_name + '_' + date)
-
-        # todo: убрать нахер!
-        self.steps = video_steps
         self._experiments_preparation()
 
     def _experiments_preparation(self):
@@ -123,19 +122,41 @@ class ExpWatcher(Watcher):
 
         tf.summary.image("Example of CA figures", to_rgb(post_state[0])[None, ...], step=train_step)
 
-    def _save_ca_video(self, train_step: int, trainable_rule: Model, seed: np.array):
-        save_video_path = self._video_folder.joinpath(f"train_step_{train_step}.mp4")
-        video_writer = VideoWriter(str(save_video_path))
+    def _save_ca_video(self, train_step: int, trainable_rule: Model):
+        print(f"[\n Saving a video recording of the growth of a cellular automaton ... ]")
+        print(f"[ Petri dish creation started ]")
 
-        with video_writer as video:
-            ca_tensor = seed[None, ...]
-            video.add(zoom(tile2d(to_rgb(seed), 5), 2))
-            for _ in range(self.steps):
-                ca_tensor = trainable_rule(ca_tensor)
-                video.add(zoom(tile2d(to_rgb(ca_tensor), 5), 2))
+        # todo: придумать как от этого избавиться
+        image_height = getattr(self, "image_height", None)
+        image_width = getattr(self, "image_width", None)
+        channel_n = getattr(self, "channel_n", None)
+        image_axis = getattr(self, "image_axis", None)
+        live_state_axis = getattr(self, "live_state_axis", None)
+
+        petri_dish = PetriDish(height=image_height,
+                               width=image_width,
+                               cell_states=channel_n,
+                               rgb_axis=image_axis,
+                               live_axis=live_state_axis,
+                               print_summary=False)
+        petri_dish.cell_state_initialization()
+        print(f"[ Petri dish creation completed ]")
+
+        # create cellar automata for embryogenesis
+        cellar_automata = MorphCA(petri_dish=petri_dish,
+                                  update_model=trainable_rule,
+                                  print_summary=False,
+                                  compatibility_test=False)
+        print(f"[ The simulation of the growth of the cellular automaton was launched ]")
+        cellar_automata.run_growth_simulation(steps=200,
+                                              return_final_state=False,
+                                              write_video=True,
+                                              save_video_path=self._video_folder,
+                                              video_name=f"train_step_{train_step}")
+        print(f"[ The video recording of the cellular automaton growth is now complete. ]")
 
     def save_config(self):
-        super(Watcher).save_conf(self.exp_root.joinpath('exp_config.json'))
+        super(ExpWatcher, self).save_conf(self.exp_root)
 
     def log_target(self, target: np.array):
         target_image = to_rgb(target)
@@ -147,12 +168,12 @@ class ExpWatcher(Watcher):
         target_image = Image.fromarray(target_image)
         target_image.save(path, 'jpeg', quality=95)
 
-    def log_train(self, step, loss, trainable_rule, next_state_batch, seed: np.array):
+    def log_train(self, step, loss, trainable_rule, next_state_batch):
         if step == 1:
             tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
             print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
             self._save_ca_state_as_image(step, next_state_batch)
-            self._save_ca_video(step, trainable_rule, seed)
+            self._save_ca_video(step, trainable_rule)
             self._save_model(trainable_rule, step)
 
         if step % 10 == 0:
@@ -164,4 +185,4 @@ class ExpWatcher(Watcher):
 
         if step % 1000 == 0:
             self._save_model(trainable_rule, step)
-            self._save_ca_video(step, trainable_rule, seed)
+            self._save_ca_video(step, trainable_rule)

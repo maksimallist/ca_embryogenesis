@@ -45,7 +45,7 @@ if __name__ == '__main__':
                                      damage_n=watcher.rlog("training_process", "mode", use_damage=3),
                                      reseed_batch=watcher.rlog("training_process", "mode", reseed_batch=True))
 
-    model = SimpleUpdateModel(name="paper_model",
+    model = SimpleUpdateModel(name=watcher.rlog("neural_model", model_name="paper_model"),
                               channels=watcher.rlog("neural_model", channel_n=16),
                               live_axis=watcher.rlog("neural_model", live_state_axis=3),
                               fire_rate=watcher.rlog("neural_model", cell_fire_rate=0.5),

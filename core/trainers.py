@@ -47,4 +47,4 @@ class TFCATrainer:
         self.watcher.save_config()
         for step in range(1, train_steps + 1, 1):
             loss, next_state_batch = self.train_step(batch_size, grad_norm_value, grow_steps)
-            self.watcher.log_train(step, loss, self.model, next_state_batch, self.data_generator.seed)
+            self.watcher.log_train(step, loss, self.model, next_state_batch)

@@ -19,7 +19,8 @@ class PetriDish:
                  width: int,
                  cell_states: int,
                  rgb_axis: Tuple[int, int, int] = (0, 1, 2),
-                 live_axis: int = 3):
+                 live_axis: int = 3,
+                 print_summary: bool = True):
         self.height, self.width = height, width
         assert cell_states > 4
         self.channels = cell_states
@@ -28,7 +29,8 @@ class PetriDish:
         self.live_axis = live_axis
         self.rgb_axis = rgb_axis
         self.cells_tensor = np.zeros([self.height, self.width, self.channels], np.float32)
-        self.summary()
+        if print_summary:
+            self.summary()
 
     def summary(self):
         print(f"=================================== The cellar automata summary ===================================")
