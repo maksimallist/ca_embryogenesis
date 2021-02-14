@@ -2,14 +2,18 @@ from typing import Callable, Tuple, Optional
 
 import tensorflow as tf
 from tensorflow.keras import Model
+from tensorflow.keras.optimizers import Optimizer
+
+from core.petri_dish import CADataGenerator
+from core.watchers import ExpWatcher
 
 
-class TFKerasTrainer:
+class TFCATrainer:
     def __init__(self,
-                 data_generator,
+                 data_generator: CADataGenerator,
                  model: Model,
-                 optimizer,
-                 watcher,
+                 optimizer: Optimizer,
+                 watcher: ExpWatcher,
                  loss_function: Optional[Callable]):
         self.model = model  # compiled keras model
         self.watcher = watcher
@@ -43,4 +47,4 @@ class TFKerasTrainer:
         self.watcher.save_config()
         for step in range(1, train_steps + 1, 1):
             loss, next_state_batch = self.train_step(batch_size, grad_norm_value, grow_steps)
-            self.watcher.train_log(step, loss, self.model, next_state_batch, self.data_generator.seed)
+            self.watcher.log_train(step, loss, self.model, next_state_batch, self.data_generator.seed)

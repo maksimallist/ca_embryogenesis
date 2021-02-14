@@ -5,10 +5,11 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from core.watchers import ExperimentWatcher, TFKerasTrainer
 from core.image_utils import load_emoji
 from core.petri_dish import CADataGenerator, PetriDish
 from core.rule_model import SimpleUpdateModel
+from core.trainers import TFCATrainer
+from core.watchers import ExpWatcher
 
 
 @tf.function
@@ -18,7 +19,7 @@ def l2_loss(batch_x: np.array, batch_y: np.array):
 
 if __name__ == '__main__':
     main_root = Path(__file__).parent.absolute()
-    watcher = ExperimentWatcher(exp_name='salamander', root=main_root)
+    watcher = ExpWatcher(exp_name='salamander', root=main_root)
 
     # load target image
     target_img = load_emoji("🦎", max_size=40)
@@ -65,11 +66,11 @@ if __name__ == '__main__':
     model_optimizer = Adam(lr_scheduler)
     model.compile(optimizer=model_optimizer, loss=l2_loss)
 
-    trainer = TFKerasTrainer(data_generator=data_generator,
-                             model=model,
-                             optimizer=model_optimizer,
-                             watcher=watcher,
-                             loss_function=l2_loss)
+    trainer = TFCATrainer(data_generator=data_generator,
+                          model=model,
+                          optimizer=model_optimizer,
+                          watcher=watcher,
+                          loss_function=l2_loss)
 
     trainer.train(train_steps=watcher.rlog("training_process", train_steps=2000),
                   batch_size=watcher.rlog("training_process", batch_size=8),

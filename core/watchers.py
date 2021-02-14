@@ -11,21 +11,19 @@ from tensorflow.keras import Model
 from core.image_utils import VideoWriter, tile2d, zoom, to_rgb
 
 
-class ExperimentWatcher:
+def is_json_serializable(x):
+    try:
+        json.dumps(x)
+        return True
+    except (TypeError, OverflowError):
+        return False
+
+
+class Watcher:
     config = {}
-    date = datetime.now().strftime("%d.%m.%Y-%H.%M")
 
-    checkpoints_folder = None
-    pictures_folder = None
-    video_folder = None
-    last_pictures_folder = None
-    tensorboard_logs = None
-
-    def __init__(self, exp_name: str, root: Path, video_steps: int = 200):
-        self.steps = video_steps
-        self.exp_root = root.joinpath(exp_name + '_' + self.date)
-        self.log(exp_name=exp_name, exp_root=str(root))
-        self._experiments_preparation()
+    def __init__(self, *args, **kwargs):
+        self.log(*args, **kwargs)
 
     @staticmethod
     def _create_log_struct(struct: Dict, name: str) -> Dict:
@@ -39,10 +37,14 @@ class ExperimentWatcher:
             for arg in args:
                 log_structure = self._create_log_struct(log_structure, arg)
                 for att, val in kwargs.items():
-                    log_structure[att] = val
+                    if is_json_serializable(val):
+                        log_structure[att] = val
+                    setattr(self, att, val)
         else:
             for att, val in kwargs.items():
-                self.config[att] = val
+                if is_json_serializable(val):
+                    self.config[att] = val
+                setattr(self, att, val)
 
     def rlog(self, *args, **kwargs):
         self.log(*args, **kwargs)
@@ -54,41 +56,48 @@ class ExperimentWatcher:
         else:
             return None
 
-    def save_config(self):
-        save_path = self.exp_root.joinpath('exp_config.json')
+    def save_conf(self, save_path: Path):
+        save_path = save_path.joinpath('exp_config.json')
         with save_path.open('w') as outfile:
             json.dump(self.config, outfile, indent=4)
+
+
+class ExpWatcher(Watcher):
+    _checkpoints_folder = None
+    _pictures_folder = None
+    _video_folder = None
+    _tensorboard_logs = None
+
+    def __init__(self, exp_name: str, root: Path, video_steps: int = 200, *args, **kwargs):
+        super(Watcher).__init__(exp_name=exp_name, root=str(root), *args, **kwargs)
+        date = datetime.now().strftime("%d.%m.%Y-%H.%M")
+        self.log(exp_date=date)
+        self.exp_root = root.joinpath(exp_name + '_' + date)
+
+        # todo: убрать нахер!
+        self.steps = video_steps
+        self._experiments_preparation()
 
     def _experiments_preparation(self):
         self.exp_root.mkdir(parents=True, exist_ok=False)
 
-        self.checkpoints_folder = self.exp_root.joinpath('checkpoints')
-        self.checkpoints_folder.mkdir()
+        self._checkpoints_folder = self.exp_root.joinpath('checkpoints')
+        self._checkpoints_folder.mkdir()
 
-        self.pictures_folder = self.exp_root.joinpath('train_pictures')
-        self.pictures_folder.mkdir()
+        self._pictures_folder = self.exp_root.joinpath('train_pictures')
+        self._pictures_folder.mkdir()
 
-        self.video_folder = self.exp_root.joinpath('train_video')
-        self.video_folder.mkdir()
+        self._video_folder = self.exp_root.joinpath('train_video')
+        self._video_folder.mkdir()
 
-        self.tensorboard_logs = self.exp_root.joinpath(f"tb_logs")
-        self.tensorboard_logs.mkdir()
+        self._tensorboard_logs = self.exp_root.joinpath(f"tb_logs")
+        self._tensorboard_logs.mkdir()
 
-        file_writer = tf.summary.create_file_writer(str(self.tensorboard_logs))
+        file_writer = tf.summary.create_file_writer(str(self._tensorboard_logs))
         file_writer.set_as_default()
 
-    def log_target(self, target: np.array):
-        target_image = to_rgb(target)
-        # Using the file writer, log the target image.
-        tf.summary.image("Target image", target_image[None, ...], step=0)
-        # Save target np.array as jpeg image
-        path = open(str(self.exp_root.joinpath('target_image.jpeg')), 'wb')
-        target_image = np.uint8(np.clip(target_image, 0, 1) * 255)
-        target_image = Image.fromarray(target_image)
-        target_image.save(path, 'jpeg', quality=95)
-
     def _save_model(self, trainable_rule: Model, train_step: int):
-        model_path = self.checkpoints_folder.joinpath("train_step_" + str(train_step))
+        model_path = self._checkpoints_folder.joinpath("train_step_" + str(train_step))
         model_path.mkdir()
         trainable_rule.save(filepath=str(model_path), overwrite=True, save_format="tf")
 
@@ -98,7 +107,7 @@ class ExperimentWatcher:
                                 img_count: int = 8,
                                 max_img_count: int = 25,
                                 img_in_line: int = 4):
-        path = open(str(self.pictures_folder) + f"/train_step_{train_step}.jpeg", 'wb')
+        path = open(str(self._pictures_folder) + f"/train_step_{train_step}.jpeg", 'wb')
         assert img_count <= max_img_count, ""
         assert len(post_state) >= img_count, ""
 
@@ -115,7 +124,7 @@ class ExperimentWatcher:
         tf.summary.image("Example of CA figures", to_rgb(post_state[0])[None, ...], step=train_step)
 
     def _save_ca_video(self, train_step: int, trainable_rule: Model, seed: np.array):
-        save_video_path = self.video_folder.joinpath(f"train_step_{train_step}.mp4")
+        save_video_path = self._video_folder.joinpath(f"train_step_{train_step}.mp4")
         video_writer = VideoWriter(str(save_video_path))
 
         with video_writer as video:
@@ -125,7 +134,20 @@ class ExperimentWatcher:
                 ca_tensor = trainable_rule(ca_tensor)
                 video.add(zoom(tile2d(to_rgb(ca_tensor), 5), 2))
 
-    def train_log(self, step, loss, trainable_rule, next_state_batch, seed: np.array):
+    def save_config(self):
+        super(Watcher).save_conf(self.exp_root.joinpath('exp_config.json'))
+
+    def log_target(self, target: np.array):
+        target_image = to_rgb(target)
+        # Using the file writer, log the target image.
+        tf.summary.image("Target image", target_image[None, ...], step=0)
+        # Save target np.array as jpeg image
+        path = open(str(self.exp_root.joinpath('target_image.jpeg')), 'wb')
+        target_image = np.uint8(np.clip(target_image, 0, 1) * 255)
+        target_image = Image.fromarray(target_image)
+        target_image.save(path, 'jpeg', quality=95)
+
+    def log_train(self, step, loss, trainable_rule, next_state_batch, seed: np.array):
         if step == 1:
             tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
             print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
