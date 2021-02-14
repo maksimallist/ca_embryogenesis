@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from core.experiment import ExperimentWatcher, TFKerasTrainer
+from core.watchers import ExperimentWatcher, TFKerasTrainer
 from core.image_utils import load_emoji
 from core.petri_dish import CADataGenerator, PetriDish
 from core.rule_model import SimpleUpdateModel
