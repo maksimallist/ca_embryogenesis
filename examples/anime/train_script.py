@@ -5,11 +5,11 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from nca.core.image_utils import load_emoji
-from nca.core.cell_cultures import CADataGenerator, PetriDish
-from nca.core.models import SimpleUpdateModel
-from nca.core.trainers import TFCATrainer
-from nca.core.watchers import ExpWatcher
+from nca.image_utils import open_image
+from nca.cell_cultures import CADataGenerator, PetriDish
+from nca.models import SimpleUpdateModel
+from nca.trainers import TFCATrainer
+from nca.watchers import ExpWatcher
 
 
 @tf.function
@@ -19,15 +19,13 @@ def l2_loss(batch_x: np.array, batch_y: np.array):
 
 if __name__ == '__main__':
     main_root = Path(__file__).parent.absolute()
-    watcher = ExpWatcher(exp_name='salamander', root=main_root)
+    watcher = ExpWatcher(exp_name='anime_girl', root=main_root)
 
-    # load target image
-    target_img = load_emoji("🦎", max_size=40)
+    target_img = open_image(str(main_root.joinpath('anime_girl.png')), max_size=40)
     target_padding = watcher.rlog(target_padding=8)
     target_padding_map = ((target_padding, target_padding), (target_padding, target_padding), (0, 0))
     padded_target = np.pad(target_img, target_padding_map, 'constant', constant_values=0.0)
     image_height, image_width = padded_target.shape[:2]
-
     watcher.log("cellar_automata", image_height=image_height, image_width=image_width)
     watcher.log_target(padded_target)
 
@@ -45,7 +43,7 @@ if __name__ == '__main__':
                                      damage_n=watcher.rlog("training_process", "mode", use_damage=3),
                                      reseed_batch=watcher.rlog("training_process", "mode", reseed_batch=True))
 
-    model = SimpleUpdateModel(name=watcher.rlog("neural_model", model_name="paper_model"),
+    model = SimpleUpdateModel(name="paper_model",
                               channels=watcher.rlog("neural_model", channel_n=16),
                               live_axis=watcher.rlog("neural_model", live_state_axis=3),
                               fire_rate=watcher.rlog("neural_model", cell_fire_rate=0.5),

@@ -3,8 +3,8 @@ from pathlib import Path
 
 from tensorflow.keras.models import load_model
 
-from nca.core.cellar_automata import MorphCA
-from nca.core.cell_cultures import PetriDish
+from nca.cellar_automata import MorphCA
+from nca.cell_cultures import PetriDish
 
 main_root = Path(__file__).parent.absolute()
 
@@ -36,4 +36,4 @@ cellar_automata.run_growth_simulation(steps=450,
                                       return_final_state=False,
                                       write_video=True,
                                       save_video_path=main_root,
-                                      video_name="girl_growth")
+                                      video_name="salamander_growth")

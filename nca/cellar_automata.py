@@ -6,8 +6,8 @@ import tensorflow as tf
 import tqdm
 from PIL import Image
 
-from nca.core import VideoWriter, tile2d, zoom, to_rgb
-from nca.core import PetriDish
+from .image_utils import VideoWriter, tile2d, zoom, to_rgb
+from .cell_cultures import PetriDish
 
 
 class MorphCA:

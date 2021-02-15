@@ -4,8 +4,8 @@ import tensorflow as tf
 from tensorflow.keras import Model
 from tensorflow.keras.optimizers import Optimizer
 
-from nca.core import CADataGenerator
-from nca.core.watchers import ExpWatcher
+from .cell_cultures import CADataGenerator
+from .watchers import ExpWatcher
 
 
 class TFCATrainer:
