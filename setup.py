@@ -1,6 +1,6 @@
 import setuptools
 
-with open("README.md", "r", encoding="utf-8") as fh:
+with open("README.md", "r") as fh:  # , encoding="utf-8"
     long_description = fh.read()
 
 setuptools.setup(
