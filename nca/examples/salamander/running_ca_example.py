@@ -4,7 +4,7 @@ from pathlib import Path
 from tensorflow.keras.models import load_model
 
 from nca.core.cellar_automata import MorphCA
-from nca.core import PetriDish
+from nca.core.cell_cultures import PetriDish
 
 main_root = Path(__file__).parent.absolute()
 
