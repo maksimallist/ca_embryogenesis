@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:  # , encoding="utf-8"
     long_description = fh.read()
 
 setuptools.setup(
-    name="neural-cellar-automata",  # Replace with your own username
+    name="nca",
     version="0.1.0",
     author="Petrov Maksim Andreevich",
     author_email="maksimallist@gmail.com",
