@@ -5,11 +5,11 @@ import tensorflow as tf
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.optimizers.schedules import PiecewiseConstantDecay
 
-from core.image_utils import load_emoji
-from core.cell_cultures import CADataGenerator, PetriDish
-from core.models import SimpleUpdateModel
-from core.trainers import TFCATrainer
-from core.watchers import ExpWatcher
+from nca.core import load_emoji
+from nca.core import CADataGenerator, PetriDish
+from nca.core import SimpleUpdateModel
+from nca.core.trainers import TFCATrainer
+from nca.core.watchers import ExpWatcher
 
 
 @tf.function

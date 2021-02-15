@@ -3,8 +3,8 @@ from pathlib import Path
 
 from tensorflow.keras.models import load_model
 
-from core.cellar_automata import MorphCA
-from core.cell_cultures import PetriDish
+from nca.core.cellar_automata import MorphCA
+from nca.core import PetriDish
 
 main_root = Path(__file__).parent.absolute()
 

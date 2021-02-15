@@ -133,5 +133,4 @@ dmypy.json
 # Pyre type checker
 .pyre/
 /experiments/anime/
-/experiments/anime/
 .vscode/

@@ -8,9 +8,9 @@ import tensorflow as tf
 from PIL import Image
 from tensorflow.keras import Model
 
-from core.cellar_automata import MorphCA
-from core.image_utils import to_rgb
-from core.cell_cultures import PetriDish
+from nca.core.cellar_automata import MorphCA
+from nca.core import to_rgb
+from nca.core import PetriDish
 
 
 def is_json_serializable(x):
