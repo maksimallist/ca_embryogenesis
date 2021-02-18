@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -12,6 +12,9 @@ class PetriDish:
     принимает только значения 0/1. Оставшиеся компоненты не имеют явной интерпретации, их количество может быть
     произвольным.
     """
+    init_mode = None
+    coordinates = None
+    state_tensor = None
 
     def __init__(self,
                  height: int,
@@ -37,19 +40,43 @@ class PetriDish:
         print(f"The indexes of rgb_axis: {self.rgb_axis}; The index of cells live status axis: {self.live_axis};")
         print(f"===================================================================================================")
 
-    # todo: upgrade this method
-    def cell_state_initialization(self, coordinates: Optional[Tuple[int, int]] = None) -> None:
-        if coordinates is None:
+    def cell_state_initialization(self,
+                                  mode: str = 'center',
+                                  coordinates: Optional[Tuple[int, int], List[Tuple[int, int]]] = None,
+                                  state_tensor: Optional[np.array] = None) -> None:
+        self.init_mode = mode
+        self.coordinates = coordinates
+        self.state_tensor = state_tensor
+
+        if mode == 'center':
             # put one life cell in center of dish
             self.cells_tensor[self.height // 2, self.width // 2, self.live_axis:] = 1.0
+        elif mode == 'cell_position':
+            if coordinates:
+                x, y = coordinates
+                assert x <= self.width
+                assert y <= self.height
+                self.cells_tensor[x, y, self.live_axis:] = 1.0
+            else:
+                raise ValueError(f"")
+        elif mode == 'few_seeds':
+            if coordinates and isinstance(coordinates, List):
+                for seed in coordinates:
+                    x, y = seed
+                    assert x <= self.width
+                    assert y <= self.height
+                    self.cells_tensor[x, y, self.live_axis:] = 1.0
+            else:
+                raise ValueError(f"")
+        elif mode == 'tensor':
+            if state_tensor:
+                assert (self.height, self.width, self.channels) == state_tensor.shape
+                self.cells_tensor = state_tensor
         else:
-            x, y = coordinates
-            assert x <= self.width
-            assert y <= self.height
-            self.cells_tensor[x, y, self.live_axis:] = 1.0
+            raise ValueError(f"")
 
     def rebase(self):
-        pass
+        self.cell_state_initialization(self.init_mode, self.coordinates, self.state_tensor)
 
 
 class CADataGenerator:
