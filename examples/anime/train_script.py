@@ -35,6 +35,7 @@ if __name__ == '__main__':
                    rgb_axis=watcher.rlog("cellar_automata", image_axis=(0, 1, 2)),
                    live_axis=watcher.rlog("cellar_automata", live_state_axis=3))
     ca.cell_state_initialization()
+    watcher.log_petri_dish(ca)
 
     watcher.log("training_process", loss_function='l2_loss')
     data_generator = CADataGenerator(ca_tensor=ca.cells_tensor,

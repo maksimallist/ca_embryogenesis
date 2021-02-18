@@ -8,9 +8,9 @@ import tensorflow as tf
 from PIL import Image
 from tensorflow.keras import Model
 
+from .cell_cultures import PetriDish
 from .cellar_automata import MorphCA
 from .image_utils import to_rgb
-from .cell_cultures import PetriDish
 
 
 def is_json_serializable(x):
@@ -69,6 +69,8 @@ class ExpWatcher(Watcher):
     _pictures_folder = None
     _video_folder = None
     _tensorboard_logs = None
+    _petri_dish = None
+    _ca_growth_steps: int = 300
 
     def __init__(self, exp_name: str, root: Path, *args, **kwargs):
         super(ExpWatcher, self).__init__(exp_name=exp_name, root=str(root), *args, **kwargs)
@@ -125,30 +127,16 @@ class ExpWatcher(Watcher):
     def _save_ca_video(self, train_step: int, trainable_rule: Model):
         print(f"[\n Saving a video recording of the growth of a cellular automaton ... ]")
         print(f"[ Petri dish creation started ]")
-
-        # todo: придумать как от этого избавиться
-        image_height = getattr(self, "image_height", None)
-        image_width = getattr(self, "image_width", None)
-        channel_n = getattr(self, "channel_n", None)
-        image_axis = getattr(self, "image_axis", None)
-        live_state_axis = getattr(self, "live_state_axis", None)
-
-        petri_dish = PetriDish(height=image_height,
-                               width=image_width,
-                               cell_states=channel_n,
-                               rgb_axis=image_axis,
-                               live_axis=live_state_axis,
-                               print_summary=False)
-        petri_dish.cell_state_initialization()
+        self._petri_dish.rebase()  # _petri_dish must be initialized
         print(f"[ Petri dish creation completed ]")
 
         # create cellar automata for embryogenesis
-        cellar_automata = MorphCA(petri_dish=petri_dish,
+        cellar_automata = MorphCA(petri_dish=self._petri_dish,
                                   update_model=trainable_rule,
                                   print_summary=False,
                                   compatibility_test=False)
         print(f"[ The simulation of the growth of the cellular automaton was launched ]")
-        cellar_automata.run_growth_simulation(steps=200,
+        cellar_automata.run_growth_simulation(steps=self._ca_growth_steps,
                                               return_final_state=False,
                                               write_video=True,
                                               save_video_path=self._video_folder,
@@ -167,6 +155,9 @@ class ExpWatcher(Watcher):
         target_image = np.uint8(np.clip(target_image, 0, 1) * 255)
         target_image = Image.fromarray(target_image)
         target_image.save(path, 'jpeg', quality=95)
+
+    def log_petri_dish(self, petri_dish: PetriDish):
+        self._petri_dish = petri_dish
 
     def log_train(self, step, loss, trainable_rule, next_state_batch):
         if step == 1:

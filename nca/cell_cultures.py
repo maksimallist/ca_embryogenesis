@@ -15,6 +15,7 @@ class PetriDish:
     init_mode = None
     coordinates = None
     state_tensor = None
+    initialized = False
 
     def __init__(self,
                  height: int,
@@ -38,6 +39,11 @@ class PetriDish:
         print(f"=================================== The cellar automata summary ===================================")
         print(f"The shape of cellar automata tensor: ({self.height}, {self.width}, {self.channels});")
         print(f"The indexes of rgb_axis: {self.rgb_axis}; The index of cells live status axis: {self.live_axis};")
+        if self.initialized:
+            print(f"The cellar automata state is initialized;")
+            print(f"The initialization mode is '{self.init_mode}';")
+        else:
+            print(f"The cellar automata state is not initialized;")
         print(f"===================================================================================================")
 
     def cell_state_initialization(self,
@@ -58,25 +64,38 @@ class PetriDish:
                 assert y <= self.height
                 self.cells_tensor[x, y, self.live_axis:] = 1.0
             else:
-                raise ValueError(f"")
+                raise ValueError(f"The 'cell_position' mode is selected, but the 'coordinates' "
+                                 f"argument is not specified.")
         elif mode == 'few_seeds':
-            if coordinates and isinstance(coordinates, List):
-                for seed in coordinates:
-                    x, y = seed
-                    assert x <= self.width
-                    assert y <= self.height
-                    self.cells_tensor[x, y, self.live_axis:] = 1.0
+            if coordinates:
+                if isinstance(coordinates, List):
+                    for seed in coordinates:
+                        x, y = seed
+                        assert x <= self.width
+                        assert y <= self.height
+                        self.cells_tensor[x, y, self.live_axis:] = 1.0
+                else:
+                    raise ValueError(f"The 'few_seeds' mode is selected. The 'coordinates' argument must be "
+                                     f"List[Tuple[int, int], but '{type(coordinates)}' was found.")
             else:
-                raise ValueError(f"")
+                raise ValueError(f"The 'few_seeds' mode is selected, but the 'coordinates' "
+                                 f"argument is not specified.")
         elif mode == 'tensor':
             if state_tensor:
                 assert (self.height, self.width, self.channels) == state_tensor.shape
                 self.cells_tensor = state_tensor
         else:
-            raise ValueError(f"")
+            raise ValueError(f"The mode of initialization must be in "
+                             f"['center', 'cell_position', 'few_seeds', 'tensor'], but {mode} was found.")
+
+        self.initialized = True
 
     def rebase(self):
-        self.cell_state_initialization(self.init_mode, self.coordinates, self.state_tensor)
+        if self.initialized:
+            self.cell_state_initialization(self.init_mode, self.coordinates, self.state_tensor)
+        else:
+            raise ValueError(f"The method 'rebase' cannot be called because the state of the cellular automaton "
+                             f"is not initialized")
 
 
 class CADataGenerator:
