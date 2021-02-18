@@ -1,7 +1,6 @@
 from typing import Optional, Tuple
 
 import numpy as np
-import tensorflow as tf
 
 
 class PetriDish:
@@ -70,24 +69,22 @@ class CADataGenerator:
 
         self.ca_set = np.repeat(ca_tensor[None, ...], repeats=set_size, axis=0)  # [pool_size, height, width, channel_n]
 
-    @tf.function
     def make_circle_damage_masks(self, n: int):
-        # todo: can be write on numpy ops
-        x = tf.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
-        y = tf.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
+        x = np.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
+        y = np.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
 
-        center = tf.random.uniform([2, n, 1, 1], -0.5, 0.5)
-        r = tf.random.uniform([n, 1, 1], 0.1, 0.4)
+        center = np.random.uniform(-0.5, 0.5, (2, n, 1, 1))
+        r = np.random.uniform(0.1, 0.4, (n, 1, 1))
 
         x, y = (x - center[0]) / r, (y - center[1]) / r
-        mask = tf.cast(x * x + y * y < 1.0, tf.float32)
+        circle = x * x + y * y
+        mask = np.asarray(circle < 1.0, np.float32)
 
         return mask
 
-    @tf.function
-    def metric(self, batch_x: np.array, batch_y: np.array):
-        # todo: can be write on numpy ops
-        return tf.reduce_mean(tf.square(batch_x[..., :4] - batch_y), [-2, -3, -1])
+    @staticmethod
+    def metric(batch_x: np.array, batch_y: np.array):
+        return np.mean(np.square(batch_x[..., :4] - batch_y), (-2, -3, -1))
 
     def sample(self, batch_size: int = 32) -> Tuple[np.array, np.array]:
         batch_idx = np.random.choice(self.set_size, size=batch_size, replace=False)
@@ -95,12 +92,12 @@ class CADataGenerator:
 
         # stabilize training process on start; prevent the equivalent of “catastrophic forgetting”;
         if self.reseed_batch:
-            loss_rank = self.metric(batch, self.target).numpy().argsort()[::-1]
+            loss_rank = self.metric(batch, self.target).argsort()[::-1]
             batch, batch_idx = batch[loss_rank], batch_idx[loss_rank]
             batch[:1] = self.seed
 
         if self.damage_n:
-            damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
+            damage = 1.0 - self.make_circle_damage_masks(self.damage_n)[..., None]
             batch[-self.damage_n:] *= damage
 
         return (batch, batch_idx), self.target
