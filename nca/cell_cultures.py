@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -145,6 +145,126 @@ class CADataGenerator:
         if self.damage_n:
             damage = 1.0 - self.make_circle_damage_masks(self.damage_n)[..., None]
             batch[-self.damage_n:] *= damage
+
+        return (batch, batch_idx), self.target
+
+    def commit(self, batch_cells: np.array, cells_idx: np.array) -> None:
+        self.ca_set[cells_idx] = batch_cells
+
+
+class TextPD:
+    initialized: bool = False
+    init_mode: Optional[str] = None
+    coordinates: Optional[Union[Tuple[int, str], List[Tuple[int, str]]]] = None
+    state_text: Optional[str] = None
+
+    def __init__(self,
+                 length: int,
+                 cell_state_shape: int,
+                 vocab: Union[str, List[str], Dict[str, int]],
+                 padding: int = 0,
+                 print_summary: bool = True):
+        self.length = length
+        self.padding = padding
+        assert cell_state_shape >= 2, ValueError("")  # TODO: write comment text
+        self.shape = (length + padding * 2, cell_state_shape)
+        self.vocab = vocab
+        self.norm_vocab = self.normalize_vocab()
+        self.cells_tensor = np.zeros([length + padding * 2, cell_state_shape], np.float32)
+        if print_summary:
+            self.summary()
+
+    def normalize_vocab(self) -> Dict[str, float]:
+        vocab_len = float(len(self.vocab))
+        norm_vocab = {}
+        for key, val in self.vocab.keys():
+            norm_vocab[key] = val / vocab_len
+
+        return norm_vocab
+
+    def summary(self):
+        print(f"================================== The text cellar automata summary ==================================")
+        print(f"The shape of cellar text automata tensor: {self.shape};")
+        if self.initialized:
+            print(f"The text cellar automata state is initialized;")
+            print(f"The initialization mode is '{self.init_mode}';")
+        else:
+            print(f"The text cellar automata state is not initialized;")
+        print(f"===================================================================================================")
+
+    def cell_state_initialization(self,
+                                  mode: str = 'center',
+                                  coordinates: Optional[Union[Tuple[int, str], List[Tuple[int, str]]]] = None,
+                                  text: Optional[str] = None) -> None:
+        self.init_mode = mode
+        self.coordinates = coordinates
+        self.state_text = text
+
+        if mode == 'center':
+            # put one life cell in center of dish
+            self.cells_tensor[self.length // 2, 0] = self.norm_vocab[' ']
+            self.cells_tensor[self.length // 2, 1] = 1.0
+        elif mode == 'cell_position':
+            if coordinates:
+                x, y = coordinates
+                assert x <= self.length
+                self.cells_tensor[x, 0] = self.norm_vocab[y]
+            else:
+                raise ValueError(f"The 'cell_position' mode is selected, but the 'coordinates' "
+                                 f"argument is not specified.")
+        elif mode == 'few_seeds':
+            if coordinates:
+                if isinstance(coordinates, List):
+                    for seed in coordinates:
+                        x, y = seed
+                        assert x <= self.length
+                        self.cells_tensor[x, 0] = self.norm_vocab[y]
+                else:
+                    raise ValueError(f"The 'few_seeds' mode is selected. The 'coordinates' argument must be "
+                                     f"List[Tuple[int, int], but '{type(coordinates)}' was found.")
+            else:
+                raise ValueError(f"The 'few_seeds' mode is selected, but the 'coordinates' "
+                                 f"argument is not specified.")
+        elif mode == 'text':
+            if text:
+                assert self.length >= len(text)
+                for ind, char in enumerate(text):
+                    self.cells_tensor[ind + self.padding, 0] = self.norm_vocab[char]
+        else:
+            raise ValueError(f"The mode of initialization must be in "
+                             f"['center', 'cell_position', 'few_seeds', 'tensor'], but {mode} was found.")
+
+        self.initialized = True
+
+    def rebase(self):
+        if self.initialized:
+            self.cell_state_initialization(self.init_mode, self.coordinates, self.state_text)
+        else:
+            raise ValueError(f"The method 'rebase' cannot be called because the state of the cellular automaton "
+                             f"is not initialized")
+
+
+class TextCAGenerator:
+    def __init__(self, target: str, ca_seed: np.array, set_size: int = 1024, reseed_batch: bool = True):
+        self.target = target
+        self.seed = ca_seed
+        self.set_size = set_size
+        self.ca_set = np.repeat(ca_seed[None, ...], repeats=set_size, axis=0)  # [pool_size, length, channel_n]
+        self.reseed_batch = reseed_batch
+
+    @staticmethod
+    def metric(batch_x: np.array, batch_y: np.array):
+        return np.mean(np.square(batch_x[..., :2] - batch_y), (-2, -1))
+
+    def sample(self, batch_size: int = 32) -> Tuple[np.array, np.array]:
+        batch_idx = np.random.choice(self.set_size, size=batch_size, replace=False)
+        batch = self.ca_set[batch_idx]
+
+        # stabilize training process on start; prevent the equivalent of “catastrophic forgetting”;
+        if self.reseed_batch:
+            loss_rank = self.metric(batch, self.target).argsort()[::-1]
+            batch, batch_idx = batch[loss_rank], batch_idx[loss_rank]
+            batch[:1] = self.seed
 
         return (batch, batch_idx), self.target
 
