@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -48,7 +48,7 @@ class PetriDish:
 
     def cell_state_initialization(self,
                                   mode: str = 'center',
-                                  coordinates: Optional[Tuple[int, int], List[Tuple[int, int]]] = None,
+                                  coordinates: Optional[Union[Tuple[int, int], List[Tuple[int, int]]]] = None,
                                   state_tensor: Optional[np.array] = None) -> None:
         self.init_mode = mode
         self.coordinates = coordinates
