@@ -37,7 +37,7 @@ class TFCATrainer:
         grads = [g / (tf.norm(g) + grad_norm_value) for g in grads]
         self.optimizer.apply_gradients(zip(grads, self.model.weights))
 
-        # insert new ca tensors in pool
+        # insert new ca states tensors in data_generator pool
         self.data_generator.commit(batch_cells=batch_x, cells_idx=batch_ids)
 
         return loss, batch_x

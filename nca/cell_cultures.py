@@ -1,7 +1,6 @@
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
-import tensorflow as tf
 
 
 class PetriDish:
@@ -13,6 +12,10 @@ class PetriDish:
     принимает только значения 0/1. Оставшиеся компоненты не имеют явной интерпретации, их количество может быть
     произвольным.
     """
+    init_mode = None
+    coordinates = None
+    state_tensor = None
+    initialized = False
 
     def __init__(self,
                  height: int,
@@ -36,21 +39,63 @@ class PetriDish:
         print(f"=================================== The cellar automata summary ===================================")
         print(f"The shape of cellar automata tensor: ({self.height}, {self.width}, {self.channels});")
         print(f"The indexes of rgb_axis: {self.rgb_axis}; The index of cells live status axis: {self.live_axis};")
+        if self.initialized:
+            print(f"The cellar automata state is initialized;")
+            print(f"The initialization mode is '{self.init_mode}';")
+        else:
+            print(f"The cellar automata state is not initialized;")
         print(f"===================================================================================================")
 
-    # todo: upgrade this method
-    def cell_state_initialization(self, coordinates: Optional[Tuple[int, int]] = None) -> None:
-        if coordinates is None:
+    def cell_state_initialization(self,
+                                  mode: str = 'center',
+                                  coordinates: Optional[Union[Tuple[int, int], List[Tuple[int, int]]]] = None,
+                                  state_tensor: Optional[np.array] = None) -> None:
+        self.init_mode = mode
+        self.coordinates = coordinates
+        self.state_tensor = state_tensor
+
+        if mode == 'center':
             # put one life cell in center of dish
             self.cells_tensor[self.height // 2, self.width // 2, self.live_axis:] = 1.0
+        elif mode == 'cell_position':
+            if coordinates:
+                x, y = coordinates
+                assert x <= self.width
+                assert y <= self.height
+                self.cells_tensor[x, y, self.live_axis:] = 1.0
+            else:
+                raise ValueError(f"The 'cell_position' mode is selected, but the 'coordinates' "
+                                 f"argument is not specified.")
+        elif mode == 'few_seeds':
+            if coordinates:
+                if isinstance(coordinates, List):
+                    for seed in coordinates:
+                        x, y = seed
+                        assert x <= self.width
+                        assert y <= self.height
+                        self.cells_tensor[x, y, self.live_axis:] = 1.0
+                else:
+                    raise ValueError(f"The 'few_seeds' mode is selected. The 'coordinates' argument must be "
+                                     f"List[Tuple[int, int], but '{type(coordinates)}' was found.")
+            else:
+                raise ValueError(f"The 'few_seeds' mode is selected, but the 'coordinates' "
+                                 f"argument is not specified.")
+        elif mode == 'tensor':
+            if state_tensor:
+                assert (self.height, self.width, self.channels) == state_tensor.shape
+                self.cells_tensor = state_tensor
         else:
-            x, y = coordinates
-            assert x <= self.width
-            assert y <= self.height
-            self.cells_tensor[x, y, self.live_axis:] = 1.0
+            raise ValueError(f"The mode of initialization must be in "
+                             f"['center', 'cell_position', 'few_seeds', 'tensor'], but {mode} was found.")
+
+        self.initialized = True
 
     def rebase(self):
-        pass
+        if self.initialized:
+            self.cell_state_initialization(self.init_mode, self.coordinates, self.state_tensor)
+        else:
+            raise ValueError(f"The method 'rebase' cannot be called because the state of the cellular automaton "
+                             f"is not initialized")
 
 
 class CADataGenerator:
@@ -70,24 +115,22 @@ class CADataGenerator:
 
         self.ca_set = np.repeat(ca_tensor[None, ...], repeats=set_size, axis=0)  # [pool_size, height, width, channel_n]
 
-    @tf.function
     def make_circle_damage_masks(self, n: int):
-        # todo: can be write on numpy ops
-        x = tf.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
-        y = tf.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
+        x = np.linspace(-1.0, 1.0, self.target_shape[1])[None, None, :]
+        y = np.linspace(-1.0, 1.0, self.target_shape[0])[None, :, None]
 
-        center = tf.random.uniform([2, n, 1, 1], -0.5, 0.5)
-        r = tf.random.uniform([n, 1, 1], 0.1, 0.4)
+        center = np.random.uniform(-0.5, 0.5, (2, n, 1, 1))
+        r = np.random.uniform(0.1, 0.4, (n, 1, 1))
 
         x, y = (x - center[0]) / r, (y - center[1]) / r
-        mask = tf.cast(x * x + y * y < 1.0, tf.float32)
+        circle = x * x + y * y
+        mask = np.asarray(circle < 1.0, np.float32)
 
         return mask
 
-    @tf.function
-    def metric(self, batch_x: np.array, batch_y: np.array):
-        # todo: can be write on numpy ops
-        return tf.reduce_mean(tf.square(batch_x[..., :4] - batch_y), [-2, -3, -1])
+    @staticmethod
+    def metric(batch_x: np.array, batch_y: np.array):
+        return np.mean(np.square(batch_x[..., :4] - batch_y), (-2, -3, -1))
 
     def sample(self, batch_size: int = 32) -> Tuple[np.array, np.array]:
         batch_idx = np.random.choice(self.set_size, size=batch_size, replace=False)
@@ -95,12 +138,12 @@ class CADataGenerator:
 
         # stabilize training process on start; prevent the equivalent of “catastrophic forgetting”;
         if self.reseed_batch:
-            loss_rank = self.metric(batch, self.target).numpy().argsort()[::-1]
+            loss_rank = self.metric(batch, self.target).argsort()[::-1]
             batch, batch_idx = batch[loss_rank], batch_idx[loss_rank]
             batch[:1] = self.seed
 
         if self.damage_n:
-            damage = 1.0 - self.make_circle_damage_masks(self.damage_n).numpy()[..., None]
+            damage = 1.0 - self.make_circle_damage_masks(self.damage_n)[..., None]
             batch[-self.damage_n:] *= damage
 
         return (batch, batch_idx), self.target
