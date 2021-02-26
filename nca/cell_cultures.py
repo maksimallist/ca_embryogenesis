@@ -175,18 +175,10 @@ class TextPD:
         assert cell_state_shape >= 2, ValueError("")  # TODO: write comment text
         self.shape = (length + padding * 2, cell_state_shape)
         self.vocab = vocab
-        self.norm_vocab = self.normalize_vocab()
+        self.ind2char = {val: key for key, val in vocab.items()}
         self.cells_tensor = np.zeros([length + padding * 2, cell_state_shape], np.float32)
         if print_summary:
             self.summary()
-
-    def normalize_vocab(self) -> Dict[str, float]:
-        vocab_len = float(len(self.vocab))
-        norm_vocab = {}
-        for key, val in self.vocab.items():
-            norm_vocab[key] = val / vocab_len
-
-        return norm_vocab
 
     def summary(self):
         print(f"================================== The text cellar automata summary ==================================")
@@ -211,13 +203,14 @@ class TextPD:
 
         if mode == 'center':
             # put one life cell in center of dish
-            self.cells_tensor[self.length // 2, 0] = self.norm_vocab.get('x')  # TODO add choose random char
+            # TODO add choose random char
+            self.cells_tensor[self.length // 2, 0] = self.vocab.get('x') / float(len(self.vocab))
             self.cells_tensor[self.length // 2, 1] = 1.0
         elif mode == 'cell_position':
             if coordinates:
                 x, y = coordinates
                 assert x <= self.length
-                self.cells_tensor[x, 0] = self.norm_vocab[y]
+                self.cells_tensor[x, 0] = self.vocab[y] / float(len(self.vocab))
                 self.cells_tensor[x, 1] = 1.0
             else:
                 raise ValueError(f"The 'cell_position' mode is selected, but the 'coordinates' "
@@ -228,7 +221,7 @@ class TextPD:
                     for seed in coordinates:
                         x, y = seed
                         assert x <= self.length
-                        self.cells_tensor[x, 0] = self.norm_vocab[y]
+                        self.cells_tensor[x, 0] = self.vocab[y] / float(len(self.vocab))
                         self.cells_tensor[x, 1] = 1.0
                 else:
                     raise ValueError(f"The 'few_seeds' mode is selected. The 'coordinates' argument must be "
@@ -237,10 +230,11 @@ class TextPD:
                 raise ValueError(f"The 'few_seeds' mode is selected, but the 'coordinates' "
                                  f"argument is not specified.")
         elif mode == 'text':
+            # TODO добавить проверку наличия всех символов из текста в словаре
             if text:
                 assert self.length >= len(text)
                 for ind, char in enumerate(text):
-                    self.cells_tensor[ind + self.padding, 0] = self.norm_vocab[char]
+                    self.cells_tensor[ind + self.padding, 0] = self.vocab[char] / float(len(self.vocab))
                     self.cells_tensor[ind + self.padding, 1] = 1.0
         else:
             raise ValueError(f"The mode of initialization must be in "
@@ -257,6 +251,16 @@ class TextPD:
         else:
             raise ValueError(f"The method 'rebase' cannot be called because the state of the cellular automaton "
                              f"is not initialized")
+
+    def np2text(self):
+        text_tensor = np.uint8(self.cells_tensor[..., :1].clip(0, 1) * len(self.vocab))
+        text_tensor = np.reshape(text_tensor, (text_tensor.shape[0],))
+
+        string = ''
+        for x in list(text_tensor):
+            string += self.ind2char[x]
+
+        return string
 
 
 class TextCAGenerator:
