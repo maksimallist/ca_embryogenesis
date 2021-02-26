@@ -54,6 +54,9 @@ class PetriDish:
         self.coordinates = coordinates
         self.state_tensor = state_tensor
 
+        if self.initialized is True:
+            self.rebase()
+
         if mode == 'center':
             # put one life cell in center of dish
             self.cells_tensor[self.height // 2, self.width // 2, self.live_axis:] = 1.0
@@ -91,6 +94,9 @@ class PetriDish:
         self.initialized = True
 
     def rebase(self):
+        self.cells_tensor = np.zeros([self.height, self.width, self.channels], np.float32)
+
+    def reseed(self):
         if self.initialized:
             self.cell_state_initialization(self.init_mode, self.coordinates, self.state_tensor)
         else:
@@ -177,7 +183,7 @@ class TextPD:
     def normalize_vocab(self) -> Dict[str, float]:
         vocab_len = float(len(self.vocab))
         norm_vocab = {}
-        for key, val in self.vocab.keys():
+        for key, val in self.vocab.items():
             norm_vocab[key] = val / vocab_len
 
         return norm_vocab
@@ -200,15 +206,19 @@ class TextPD:
         self.coordinates = coordinates
         self.state_text = text
 
+        if self.initialized is True:
+            self.rebase()
+
         if mode == 'center':
             # put one life cell in center of dish
-            self.cells_tensor[self.length // 2, 0] = self.norm_vocab[' ']
+            self.cells_tensor[self.length // 2, 0] = self.norm_vocab.get('x')  # TODO add choose random char
             self.cells_tensor[self.length // 2, 1] = 1.0
         elif mode == 'cell_position':
             if coordinates:
                 x, y = coordinates
                 assert x <= self.length
                 self.cells_tensor[x, 0] = self.norm_vocab[y]
+                self.cells_tensor[x, 1] = 1.0
             else:
                 raise ValueError(f"The 'cell_position' mode is selected, but the 'coordinates' "
                                  f"argument is not specified.")
@@ -219,6 +229,7 @@ class TextPD:
                         x, y = seed
                         assert x <= self.length
                         self.cells_tensor[x, 0] = self.norm_vocab[y]
+                        self.cells_tensor[x, 1] = 1.0
                 else:
                     raise ValueError(f"The 'few_seeds' mode is selected. The 'coordinates' argument must be "
                                      f"List[Tuple[int, int], but '{type(coordinates)}' was found.")
@@ -230,6 +241,7 @@ class TextPD:
                 assert self.length >= len(text)
                 for ind, char in enumerate(text):
                     self.cells_tensor[ind + self.padding, 0] = self.norm_vocab[char]
+                    self.cells_tensor[ind + self.padding, 1] = 1.0
         else:
             raise ValueError(f"The mode of initialization must be in "
                              f"['center', 'cell_position', 'few_seeds', 'tensor'], but {mode} was found.")
@@ -237,6 +249,9 @@ class TextPD:
         self.initialized = True
 
     def rebase(self):
+        self.cells_tensor = np.zeros(self.shape, np.float32)
+
+    def reseed(self):
         if self.initialized:
             self.cell_state_initialization(self.init_mode, self.coordinates, self.state_text)
         else:

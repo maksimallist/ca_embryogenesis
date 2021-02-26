@@ -127,7 +127,7 @@ class ExpWatcher(Watcher):
     def _save_ca_video(self, train_step: int, trainable_rule: Model):
         print(f"[\n Saving a video recording of the growth of a cellular automaton ... ]")
         print(f"[ Petri dish creation started ]")
-        self._petri_dish.rebase()  # _petri_dish must be initialized
+        self._petri_dish.reseed()  # _petri_dish must be initialized
         print(f"[ Petri dish creation completed ]")
 
         # create cellar automata for embryogenesis
