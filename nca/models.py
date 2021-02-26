@@ -2,7 +2,9 @@ from typing import Optional
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Conv2D, Layer
+from tensorflow.keras.layers import Conv1D, Conv2D, Layer
+
+from .custom_tf_layers import DepthwiseConv1D
 
 
 class StateObservation(Layer):
@@ -177,6 +179,117 @@ class SimpleUpdateModel(tf.keras.Model):
             # за счет накладывания случайной маски, симулируется стохастичность обновления состояния клеток,
             # то есть клетки обновляются не одновременно, а как бы со случайным интервалом.
             time_stochastic_mask = tf.random.uniform(tf.shape(inputs[:, :, :, :1])) <= self.fire_rate
+            new_states = inputs + ca_delta * tf.cast(time_stochastic_mask, tf.float32)
+        else:
+            new_states = inputs + ca_delta
+
+        # determine which cells became alive and which did not
+        new_life_mask = self.get_living_mask(new_states)
+        new_life_mask = life_mask & new_life_mask
+        new_states = new_states * tf.cast(new_life_mask, tf.float32)
+
+        return new_states
+
+
+# ================================================= Text Model ======================================================
+class StateObservation1D(Layer):
+    def __init__(self,
+                 channel_n: int,
+                 kernel_norm_value: int = 8,
+                 name='perception1d_kernel',
+                 **kwargs):
+        super(StateObservation1D, self).__init__(name=name, **kwargs)
+        self.channel_n = channel_n
+        self.norm_value = tf.constant(kernel_norm_value, dtype=tf.float32)
+        # get identify mask for single cell
+        self.identify_mask = tf.constant([[0.0, 1.0, 0.0]], dtype=tf.float32)
+        # create kernel for depthwise_conv1d layer
+        self.kernel = self.create_sobel_kernel()
+        self.perception = DepthwiseConv1D(kernel_size=3, filter=self.kernel, strides=[1, 1, 1, 1], padding='SAME')
+
+    def create_sobel_kernel(self):
+        # create Sobel operators for 'x' and 'y' axis
+        sobel_filter_x = tf.constant([[1.0, 0.0, -1.0]], dtype=tf.float32) / self.norm_value
+        sobel_filter_y = tf.constant([[-1.0, 0.0, 1.0]], dtype=tf.float32) / self.norm_value
+
+        kernel = tf.stack([self.identify_mask, sobel_filter_x, sobel_filter_y], -1)  # kernel shape: [1, 3, 3]
+        kernel = kernel[:, :, None, :]  # kernel shape: [1, 3, 1, 3]
+        kernel = tf.repeat(input=kernel, repeats=self.channel_n, axis=2)  # kernel shape: [1, 3, channel_n, 3]
+
+        return kernel
+
+    def call(self, inputs, **kwargs):
+        return self.perception(inputs)  # shape: [Batch, 1, Width, channel_n * 3]
+
+
+class LivingMask1D(Layer):
+    def __init__(self,
+                 life_threshold: float = 0.1,
+                 live_axis: int = 2,
+                 kernel_size: int = 3,
+                 name='get_living_mask1d',
+                 **kwargs):
+        super(LivingMask1D, self).__init__(name=name, **kwargs)
+        self.life_threshold = life_threshold
+        self.live_axis = live_axis
+        self.kernel_size = kernel_size
+
+    def call(self, inputs, **kwargs):
+        pool_result = tf.nn.max_pool1d(input=inputs[:, :, self.live_axis:self.live_axis + 1],
+                                       ksize=self.kernel_size,
+                                       strides=[1, 1, 1, 1],
+                                       padding='SAME')  # alpha shape: [Batch, Height, Width, 1]
+        return pool_result > self.life_threshold  # [Batch, Height, Width, 1]; заполнена нулями и единицами;
+
+
+class Text1DModel(tf.keras.Model):
+    def __init__(self,
+                 name: str,
+                 channels: int,
+                 life_threshold: float = 0.1,
+                 live_axis: int = 2,
+                 perception_kernel_size: int = 3,
+                 perception_kernel_norm_value: int = 8,
+                 last_conv_filters: int = 128,
+                 last_conv_kernel_size: int = 1,
+                 stochastic_update: bool = True,
+                 fire_rate: Optional[float] = 0.5,
+                 **kwargs):
+        super(Text1DModel, self).__init__(name=name, **kwargs)
+        # define the mode of cellar automata grow
+        self.stochastic_update = stochastic_update
+        if stochastic_update and fire_rate:
+            self.fire_rate = tf.cast(fire_rate, tf.float32)
+        elif stochastic_update and fire_rate is None:
+            raise ValueError("If you want to train the cellar automata in stochastic mode, "
+                             "the 'fire_rate' argument must be not None, but it is.")
+
+        # define the network layers
+        self.get_living_mask = LivingMask1D(life_threshold=life_threshold,
+                                            live_axis=live_axis,
+                                            kernel_size=perception_kernel_size)
+        self.observation = StateObservation1D(channel_n=channels,
+                                              kernel_norm_value=perception_kernel_norm_value)
+        self.conv_1 = Conv1D(filters=last_conv_filters,
+                             kernel_size=last_conv_kernel_size,
+                             activation=tf.nn.relu)
+        self.conv_2 = Conv1D(filters=channels,
+                             kernel_size=last_conv_kernel_size,
+                             activation=None,
+                             kernel_initializer=tf.zeros_initializer())
+
+    def call(self, inputs, **kwargs):
+        # gets changing cell states
+        life_mask = self.get_living_mask(inputs)  # shape: [Batch, Height, Width, 1];
+        state_observation = self.observation(inputs)  # kernel shape: [3, 3, self.channel_n, 3]
+        conv_out = self.conv_1(state_observation)
+        ca_delta = self.conv_2(conv_out)
+
+        # update the cells states
+        if self.stochastic_update:
+            # за счет накладывания случайной маски, симулируется стохастичность обновления состояния клеток,
+            # то есть клетки обновляются не одновременно, а как бы со случайным интервалом.
+            time_stochastic_mask = tf.random.uniform(tf.shape(inputs[:, :, :1])) <= self.fire_rate
             new_states = inputs + ca_delta * tf.cast(time_stochastic_mask, tf.float32)
         else:
             new_states = inputs + ca_delta
