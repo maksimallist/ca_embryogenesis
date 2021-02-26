@@ -177,3 +177,57 @@ class ExpWatcher(Watcher):
         if step % 1000 == 0:
             self._save_model(trainable_rule, step)
             self._save_ca_video(step, trainable_rule)
+
+
+class TextWatcher(Watcher):
+    _checkpoints_folder = None
+    _text_folder = None
+    _tensorboard_logs = None
+    _petri_dish = None
+    _ca_growth_steps: int = 100
+
+    def __init__(self, exp_name: str, root: Path, *args, **kwargs):
+        super(TextWatcher, self).__init__(exp_name=exp_name, root=str(root), *args, **kwargs)
+        date = datetime.now().strftime("%d.%m.%Y-%H.%M")
+        self.log(exp_date=date)  # exp_name=exp_name, root=str(root)
+        self.exp_root = root.joinpath(exp_name + '_' + date)
+        self._experiments_preparation()
+
+    def _experiments_preparation(self):
+        self.exp_root.mkdir(parents=True, exist_ok=False)
+
+        self._checkpoints_folder = self.exp_root.joinpath('checkpoints')
+        self._checkpoints_folder.mkdir()
+
+        self._text_folder = self.exp_root.joinpath('train_text')
+        self._text_folder.mkdir()
+
+        self._tensorboard_logs = self.exp_root.joinpath(f"tb_logs")
+        self._tensorboard_logs.mkdir()
+
+        file_writer = tf.summary.create_file_writer(str(self._tensorboard_logs))
+        file_writer.set_as_default()
+
+    def _save_model(self, trainable_rule: Model, train_step: int):
+        model_path = self._checkpoints_folder.joinpath("train_step_" + str(train_step))
+        model_path.mkdir()
+        trainable_rule.save(filepath=str(model_path), overwrite=True, save_format="tf")
+
+    def save_config(self):
+        super(TextWatcher, self).save_conf(self.exp_root)
+
+    def log_petri_dish(self, petri_dish: PetriDish):
+        self._petri_dish = petri_dish
+
+    def log_train(self, step, loss, trainable_rule, next_state_batch):
+        if step == 1:
+            tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
+            print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
+            self._save_model(trainable_rule, step)
+
+        if step % 10 == 0:
+            tf.summary.scalar('loss_log', data=np.log10(loss), step=step)
+            print(f"\r step: {step}, log10(loss): {np.round(np.log10(loss), decimals=3)}", end='')
+
+        if step % 200 == 0:
+            self._save_model(trainable_rule, step)
