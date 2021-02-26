@@ -14,6 +14,7 @@ from tensorflow.python.ops import array_ops
 from tensorflow.python.util.tf_export import keras_export
 
 
+# https://github.com/tensorflow/tensorflow/issues/36935
 @keras_export('keras.layers.DepthwiseConv1D')
 class DepthwiseConv1D(Conv1D):
     """Depthwise separable 1D convolution.
