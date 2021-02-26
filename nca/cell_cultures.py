@@ -252,8 +252,8 @@ class TextPD:
             raise ValueError(f"The method 'rebase' cannot be called because the state of the cellular automaton "
                              f"is not initialized")
 
-    def np2text(self):
-        text_tensor = np.uint8(self.cells_tensor[..., :1].clip(0, 1) * len(self.vocab))
+    def np2text(self, tensor: np.array):
+        text_tensor = np.uint8(tensor[..., :1].clip(0, 1) * len(self.vocab))
         text_tensor = np.reshape(text_tensor, (text_tensor.shape[0],))
 
         string = ''
@@ -264,7 +264,7 @@ class TextPD:
 
 
 class TextCAGenerator:
-    def __init__(self, target: str, ca_seed: np.array, set_size: int = 1024, reseed_batch: bool = True):
+    def __init__(self, target: np.array, ca_seed: np.array, set_size: int = 1024, reseed_batch: bool = True):
         self.target = target
         self.seed = ca_seed
         self.set_size = set_size

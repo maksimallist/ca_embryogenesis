@@ -204,8 +204,8 @@ class StateObservation1D(Layer):
         # get identify mask for single cell
         self.identify_mask = tf.constant([[0.0, 1.0, 0.0]], dtype=tf.float32)
         # create kernel for depthwise_conv1d layer
-        self.kernel = self.create_sobel_kernel()
-        self.perception = DepthwiseConv1D(kernel_size=3, filter=self.kernel, strides=[1, 1, 1, 1], padding='SAME')
+        # self.kernel = self.create_sobel_kernel()
+        self.perception = DepthwiseConv1D(kernel_size=3, padding='SAME')  # filters=self.kernel, strides=(1, 1, 1, 1),
 
     def create_sobel_kernel(self):
         # create Sobel operators for 'x' and 'y' axis
@@ -237,7 +237,7 @@ class LivingMask1D(Layer):
     def call(self, inputs, **kwargs):
         pool_result = tf.nn.max_pool1d(input=inputs[:, :, self.live_axis:self.live_axis + 1],
                                        ksize=self.kernel_size,
-                                       strides=[1, 1, 1, 1],
+                                       strides=1,  # [1, 1, 1, 1]
                                        padding='SAME')  # alpha shape: [Batch, Height, Width, 1]
         return pool_result > self.life_threshold  # [Batch, Height, Width, 1]; заполнена нулями и единицами;
 
